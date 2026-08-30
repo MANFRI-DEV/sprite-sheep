@@ -1,0 +1,74 @@
+[gd_scene load_steps=2 format=3 uid="uid://b1spritesheep0cfy"]
+
+[ext_resource type="Script" path="res://scripts/pannello_comfyui.gd" id="1_cfy"]
+
+[node name="PannelloComfyUI" type="PanelContainer"]
+script = ExtResource("1_cfy")
+
+[node name="Margine" type="MarginContainer" parent="."]
+layout_mode = 2
+theme_override_constants/margin_left = 16
+theme_override_constants/margin_top = 14
+theme_override_constants/margin_right = 16
+theme_override_constants/margin_bottom = 14
+
+[node name="Colonna" type="VBoxContainer" parent="Margine"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="Titolo" type="Label" parent="Margine/Colonna"]
+layout_mode = 2
+text = "Motore di generazione"
+theme_override_font_sizes/font_size = 16
+
+[node name="Sottotitolo" type="Label" parent="Margine/Colonna"]
+layout_mode = 2
+text = "Sprite Sheep usa ComfyUI, che va installata separatamente."
+theme_override_colors/font_color = Color(0.6, 0.65, 0.72, 1)
+theme_override_font_sizes/font_size = 11
+autowrap_mode = 3
+
+[node name="Passi" type="VBoxContainer" parent="Margine/Colonna"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_constants/separation = 10
+
+[node name="Sep" type="HSeparator" parent="Margine/Colonna"]
+layout_mode = 2
+
+[node name="Pulsanti" type="HBoxContainer" parent="Margine/Colonna"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="CartellaButton" type="Button" parent="Margine/Colonna/Pulsanti"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Indica cartella..."
+
+[node name="AvviaButton" type="Button" parent="Margine/Colonna/Pulsanti"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+disabled = true
+text = "Avvia ComfyUI"
+
+[node name="RicontrollaButton" type="Button" parent="Margine/Colonna/Pulsanti"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Ricontrolla"
+
+[node name="Riassunto" type="RichTextLabel" parent="Margine/Colonna"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 46)
+layout_mode = 2
+bbcode_enabled = true
+fit_content = true
+
+[node name="CartellaDialog" type="FileDialog" parent="."]
+unique_name_in_owner = true
+title = "Cartella di ComfyUI (quella con main.py)"
+initial_position = 2
+size = Vector2i(760, 520)
+ok_button_text = "Scegli"
+file_mode = 2
+access = 2

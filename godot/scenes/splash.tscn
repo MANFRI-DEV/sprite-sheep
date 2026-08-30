@@ -1,0 +1,83 @@
+[gd_scene load_steps=4 format=3 uid="uid://b1spritesheep0splash"]
+
+[ext_resource type="Script" path="res://scripts/splash.gd" id="1_splash"]
+[ext_resource type="Texture2D" path="res://sprites/sprite_sheep_trasparente.png" id="2_pecora"]
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_badge"]
+bg_color = Color(0.361, 0.812, 0.494, 1)
+corner_radius_top_left = 6
+corner_radius_top_right = 6
+corner_radius_bottom_right = 6
+corner_radius_bottom_left = 6
+content_margin_left = 14.0
+content_margin_top = 4.0
+content_margin_right = 14.0
+content_margin_bottom = 4.0
+
+[node name="Splash" type="CanvasLayer"]
+layer = 10
+script = ExtResource("1_splash")
+
+[node name="Fondo" type="ColorRect" parent="."]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0.078, 0.086, 0.106, 1)
+
+[node name="Centro" type="CenterContainer" parent="."]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="Colonna" type="VBoxContainer" parent="Centro"]
+layout_mode = 2
+theme_override_constants/separation = 10
+
+[node name="Pecora" type="TextureRect" parent="Centro/Colonna"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(280, 280)
+layout_mode = 2
+size_flags_horizontal = 4
+texture = ExtResource("2_pecora")
+expand_mode = 1
+stretch_mode = 5
+
+[node name="Titolo" type="Label" parent="Centro/Colonna"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.886, 0.902, 0.933, 1)
+theme_override_font_sizes/font_size = 44
+text = "SPRITE SHEEP"
+horizontal_alignment = 1
+
+[node name="BadgeRiga" type="HBoxContainer" parent="Centro/Colonna"]
+layout_mode = 2
+alignment = 1
+
+[node name="Badge" type="PanelContainer" parent="Centro/Colonna/BadgeRiga"]
+layout_mode = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_badge")
+
+[node name="Edizione" type="Label" parent="Centro/Colonna/BadgeRiga/Badge"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.055, 0.165, 0.094, 1)
+theme_override_font_sizes/font_size = 18
+text = "FREE"
+horizontal_alignment = 1
+
+[node name="Spazio" type="Control" parent="Centro/Colonna"]
+custom_minimum_size = Vector2(0, 18)
+layout_mode = 2
+
+[node name="Stato" type="Label" parent="Centro/Colonna"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.498, 0.529, 0.596, 1)
+theme_override_font_sizes/font_size = 13
+text = "avvio del motore..."
+horizontal_alignment = 1

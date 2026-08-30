@@ -1,0 +1,82 @@
+[gd_scene load_steps=2 format=3 uid="uid://b1spritesheep0img"]
+
+[ext_resource type="Script" path="res://scripts/pannello_immagine.gd" id="1_img"]
+
+[node name="PannelloImmagine" type="PanelContainer"]
+script = ExtResource("1_img")
+
+[node name="Margine" type="MarginContainer" parent="."]
+layout_mode = 2
+theme_override_constants/margin_left = 16
+theme_override_constants/margin_top = 14
+theme_override_constants/margin_right = 16
+theme_override_constants/margin_bottom = 14
+
+[node name="Colonna" type="VBoxContainer" parent="Margine"]
+layout_mode = 2
+theme_override_constants/separation = 10
+
+[node name="Titolo" type="Label" parent="Margine/Colonna"]
+layout_mode = 2
+text = "1. Sprite sorgente"
+theme_override_font_sizes/font_size = 16
+
+[node name="Sfondo" type="ColorRect" parent="Margine/Colonna"]
+custom_minimum_size = Vector2(0, 190)
+layout_mode = 2
+color = Color(0.16, 0.17, 0.2, 1)
+
+[node name="Anteprima" type="TextureRect" parent="Margine/Colonna/Sfondo"]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+expand_mode = 1
+stretch_mode = 5
+
+[node name="PercorsoLabel" type="Label" parent="Margine/Colonna"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "nessun file scelto — o trascina qui"
+theme_override_colors/font_color = Color(0.6, 0.65, 0.72, 1)
+text_overrun_behavior = 3
+
+[node name="SfogliaButton" type="Button" parent="Margine/Colonna"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Scegli immagine..."
+
+[node name="InfoLabel" type="RichTextLabel" parent="Margine/Colonna"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 46)
+layout_mode = 2
+bbcode_enabled = true
+fit_content = true
+
+[node name="Sep" type="HSeparator" parent="Margine/Colonna"]
+layout_mode = 2
+
+[node name="RimuoviSfondoCheck" type="CheckBox" parent="Margine/Colonna"]
+unique_name_in_owner = true
+layout_mode = 2
+disabled = true
+text = "Scontorna questo sprite prima di usarlo"
+
+[node name="ApplicaButton" type="Button" parent="Margine/Colonna"]
+unique_name_in_owner = true
+layout_mode = 2
+disabled = true
+text = "Scontorna adesso"
+
+[node name="FileDialog" type="FileDialog" parent="."]
+unique_name_in_owner = true
+title = "Scegli lo sprite sorgente"
+initial_position = 2
+size = Vector2i(760, 520)
+ok_button_text = "Apri"
+file_mode = 0
+access = 2
+filters = PackedStringArray("*.png, *.jpg, *.jpeg, *.webp ; Immagini")

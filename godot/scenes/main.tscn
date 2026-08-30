@@ -1,0 +1,202 @@
+[gd_scene load_steps=9 format=3 uid="uid://b1spritesheep0main"]
+
+[ext_resource type="Script" path="res://scripts/main.gd" id="1_main"]
+[ext_resource type="Script" path="res://scripts/sidecar_client.gd" id="2_sidecar"]
+[ext_resource type="PackedScene" path="res://scenes/pannello_immagine.tscn" id="3_img"]
+[ext_resource type="PackedScene" path="res://scenes/pannello_prompt.tscn" id="4_prm"]
+[ext_resource type="PackedScene" path="res://scenes/pannello_modelli.tscn" id="5_mod"]
+[ext_resource type="PackedScene" path="res://scenes/pannello_genera.tscn" id="6_gen"]
+[ext_resource type="PackedScene" path="res://scenes/pannello_comfyui.tscn" id="7_cfy"]
+[ext_resource type="PackedScene" path="res://scenes/pannello_risultato.tscn" id="8_ris"]
+
+[node name="Main" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_main")
+
+[node name="Sfondo" type="ColorRect" parent="."]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0.078, 0.086, 0.106, 1)
+
+[node name="Sidecar" type="Node" parent="."]
+unique_name_in_owner = true
+script = ExtResource("2_sidecar")
+
+[node name="Margine" type="MarginContainer" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/margin_left = 14
+theme_override_constants/margin_top = 12
+theme_override_constants/margin_right = 14
+theme_override_constants/margin_bottom = 12
+
+[node name="Colonna" type="VBoxContainer" parent="Margine"]
+layout_mode = 2
+theme_override_constants/separation = 10
+
+[node name="Barra" type="PanelContainer" parent="Margine/Colonna"]
+unique_name_in_owner = true
+layout_mode = 2
+
+[node name="Riga" type="HBoxContainer" parent="Margine/Colonna/Barra"]
+layout_mode = 2
+theme_override_constants/separation = 18
+
+[node name="Titolo" type="Label" parent="Margine/Colonna/Barra/Riga"]
+layout_mode = 2
+size_flags_vertical = 4
+text = "Sprite Sheep"
+theme_override_font_sizes/font_size = 18
+
+[node name="SpieRiga" type="HBoxContainer" parent="Margine/Colonna/Barra/Riga"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_vertical = 4
+theme_override_constants/separation = 16
+
+[node name="Spazio" type="Control" parent="Margine/Colonna/Barra/Riga"]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="LinguaOption" type="OptionButton" parent="Margine/Colonna/Barra/Riga"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(120, 0)
+layout_mode = 2
+size_flags_vertical = 4
+
+[node name="ImpostazioniButton" type="Button" parent="Margine/Colonna/Barra/Riga"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_vertical = 4
+text = "Impostazioni"
+
+[node name="Corpo" type="HBoxContainer" parent="Margine/Colonna"]
+layout_mode = 2
+size_flags_vertical = 3
+theme_override_constants/separation = 12
+
+[node name="ScorriSx" type="ScrollContainer" parent="Margine/Colonna/Corpo"]
+layout_mode = 2
+size_flags_horizontal = 3
+horizontal_scroll_mode = 0
+
+[node name="ColSx" type="VBoxContainer" parent="Margine/Colonna/Corpo/ScorriSx"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 10
+
+[node name="PannelloImmagine" parent="Margine/Colonna/Corpo/ScorriSx/ColSx" instance=ExtResource("3_img")]
+unique_name_in_owner = true
+layout_mode = 2
+
+[node name="PannelloPrompt" parent="Margine/Colonna/Corpo/ScorriSx/ColSx" instance=ExtResource("4_prm")]
+unique_name_in_owner = true
+layout_mode = 2
+
+[node name="ScorriDx" type="ScrollContainer" parent="Margine/Colonna/Corpo"]
+layout_mode = 2
+size_flags_horizontal = 3
+horizontal_scroll_mode = 0
+
+[node name="ColDx" type="VBoxContainer" parent="Margine/Colonna/Corpo/ScorriDx"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 10
+
+[node name="PannelloGenera" parent="Margine/Colonna/Corpo/ScorriDx/ColDx" instance=ExtResource("6_gen")]
+unique_name_in_owner = true
+layout_mode = 2
+
+[node name="PannelloRisultato" parent="Margine/Colonna/Corpo/ScorriDx/ColDx" instance=ExtResource("8_ris")]
+unique_name_in_owner = true
+layout_mode = 2
+
+[node name="FinestraImpostazioni" type="Window" parent="."]
+unique_name_in_owner = true
+title = "Impostazioni — motore e modelli"
+initial_position = 2
+size = Vector2i(560, 720)
+visible = false
+transient = true
+exclusive = false
+
+[node name="SfondoImp" type="ColorRect" parent="FinestraImpostazioni"]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0.078, 0.086, 0.106, 1)
+
+[node name="MargineImp" type="MarginContainer" parent="FinestraImpostazioni"]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/margin_left = 14
+theme_override_constants/margin_top = 14
+theme_override_constants/margin_right = 14
+theme_override_constants/margin_bottom = 14
+
+[node name="ScorriImp" type="ScrollContainer" parent="FinestraImpostazioni/MargineImp"]
+layout_mode = 2
+horizontal_scroll_mode = 0
+
+[node name="ColImp" type="VBoxContainer" parent="FinestraImpostazioni/MargineImp/ScorriImp"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 10
+
+[node name="PannelloComfyUI" parent="FinestraImpostazioni/MargineImp/ScorriImp/ColImp" instance=ExtResource("7_cfy")]
+unique_name_in_owner = true
+layout_mode = 2
+
+[node name="PannelloModelli" parent="FinestraImpostazioni/MargineImp/ScorriImp/ColImp" instance=ExtResource("5_mod")]
+unique_name_in_owner = true
+layout_mode = 2
+
+[node name="Diagnostica" type="PanelContainer" parent="FinestraImpostazioni/MargineImp/ScorriImp/ColImp"]
+layout_mode = 2
+
+[node name="MargineDiag" type="MarginContainer" parent="FinestraImpostazioni/MargineImp/ScorriImp/ColImp/Diagnostica"]
+layout_mode = 2
+theme_override_constants/margin_left = 14
+theme_override_constants/margin_top = 10
+theme_override_constants/margin_right = 14
+theme_override_constants/margin_bottom = 10
+
+[node name="ColDiag" type="VBoxContainer" parent="FinestraImpostazioni/MargineImp/ScorriImp/ColImp/Diagnostica/MargineDiag"]
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="TitoloDiag" type="Label" parent="FinestraImpostazioni/MargineImp/ScorriImp/ColImp/Diagnostica/MargineDiag/ColDiag"]
+layout_mode = 2
+text = "Diagnostica"
+theme_override_font_sizes/font_size = 16
+
+[node name="DettagliLabel" type="RichTextLabel" parent="FinestraImpostazioni/MargineImp/ScorriImp/ColImp/Diagnostica/MargineDiag/ColDiag"]
+unique_name_in_owner = true
+layout_mode = 2
+bbcode_enabled = true
+fit_content = true
+scroll_active = false
+
+[node name="CopiaDiagButton" type="Button" parent="FinestraImpostazioni/MargineImp/ScorriImp/ColImp/Diagnostica/MargineDiag/ColDiag"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Copia diagnostica"

@@ -1,0 +1,99 @@
+[gd_scene load_steps=2 format=3 uid="uid://b1spritesheep0mod"]
+
+[ext_resource type="Script" path="res://scripts/pannello_modelli.gd" id="1_mod"]
+
+[node name="PannelloModelli" type="PanelContainer"]
+script = ExtResource("1_mod")
+
+[node name="Margine" type="MarginContainer" parent="."]
+layout_mode = 2
+theme_override_constants/margin_left = 16
+theme_override_constants/margin_top = 14
+theme_override_constants/margin_right = 16
+theme_override_constants/margin_bottom = 14
+
+[node name="Colonna" type="VBoxContainer" parent="Margine"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="Titolo" type="Label" parent="Margine/Colonna"]
+layout_mode = 2
+text = "Modelli"
+theme_override_font_sizes/font_size = 16
+
+[node name="Nota" type="Label" parent="Margine/Colonna"]
+layout_mode = 2
+text = "I pesi non sono inclusi: si scaricano da HuggingFace."
+theme_override_colors/font_color = Color(0.6, 0.65, 0.72, 1)
+theme_override_font_sizes/font_size = 11
+autowrap_mode = 3
+
+[node name="Scorri" type="ScrollContainer" parent="Margine/Colonna"]
+custom_minimum_size = Vector2(0, 170)
+layout_mode = 2
+
+[node name="ListaModelli" type="VBoxContainer" parent="Margine/Colonna/Scorri"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 8
+
+[node name="Sep" type="HSeparator" parent="Margine/Colonna"]
+layout_mode = 2
+
+[node name="LblAttivo" type="Label" parent="Margine/Colonna"]
+layout_mode = 2
+text = "Modello da usare"
+theme_override_colors/font_color = Color(0.6, 0.65, 0.72, 1)
+theme_override_font_sizes/font_size = 12
+
+[node name="ModelloOption" type="OptionButton" parent="Margine/Colonna"]
+unique_name_in_owner = true
+layout_mode = 2
+disabled = true
+
+[node name="CartellaModelliDialog" type="FileDialog" parent="."]
+unique_name_in_owner = true
+title = "Cartella con i modelli"
+initial_position = 2
+size = Vector2i(760, 520)
+ok_button_text = "Usa questa cartella"
+file_mode = 2
+access = 2
+use_native_dialog = true
+
+[node name="LicenzaDialog" type="AcceptDialog" parent="."]
+unique_name_in_owner = true
+title = "Licenza"
+size = Vector2i(720, 460)
+ok_button_text = "Accetto e scarico"
+dialog_hide_on_ok = true
+
+[node name="Colonna" type="VBoxContainer" parent="LicenzaDialog"]
+offset_left = 8.0
+offset_top = 8.0
+offset_right = 712.0
+offset_bottom = 412.0
+theme_override_constants/separation = 10
+
+[node name="Scorri" type="ScrollContainer" parent="LicenzaDialog/Colonna"]
+layout_mode = 2
+size_flags_vertical = 3
+
+[node name="LicenzaTesto" type="RichTextLabel" parent="LicenzaDialog/Colonna/Scorri"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+bbcode_enabled = true
+fit_content = true
+
+[node name="LicenzaLink" type="LinkButton" parent="LicenzaDialog/Colonna"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "testo completo della licenza"
+
+[node name="LicenzaCheck" type="CheckBox" parent="LicenzaDialog/Colonna"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Ho letto e accetto i termini di licenza di questo modello"

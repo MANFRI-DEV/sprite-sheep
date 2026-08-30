@@ -1,0 +1,171 @@
+"""Raccoglie licenze e avvisi di copyright dei componenti di terze parti.
+
+Produce `LICENZE-TERZE-PARTI.txt` accanto all'eseguibile. Nessuna delle
+licenze coinvolte impone un formato: quello che chiedono e' che l'avviso e il
+testo siano **consegnati** all'utente. I testi viaggiano gia' dentro
+`python/Lib/site-packages/*.dist-info/licenses/`, ma sepolti in venti
+sottocartelle: qui si mettono in un file solo, in cima al pacchetto, cosi' la
+cosa e' verificabile invece che presunta.
+
+Si legge dal runtime davvero distribuito, non da un elenco scritto a mano: un
+elenco a mano invecchia al primo aggiornamento di una dipendenza e nessuno se
+ne accorge.
+
+    python build_licenze.py
+"""
+import io
+import sys
+from pathlib import Path
+
+RADICE = Path(__file__).resolve().parent
+DISTRIBUZIONI = [RADICE / "dist"]
+FUORI = "LICENZE-TERZE-PARTI.txt"
+
+## Componenti che non stanno in un .dist-info e vanno dichiarati a parte.
+A_MANO = [
+    ("Python", "3.12.10", "PSF-2.0",
+     "Copyright (c) 2001-2024 Python Software Foundation. All Rights Reserved.",
+     "python/LICENSE.txt"),
+    ("OpenBLAS", "incorporata in numpy e scipy", "BSD-3-Clause",
+     "Copyright (c) 2011-2024, The OpenBLAS Project. All rights reserved.\n"
+     "Distribuita come libreria nativa dentro numpy.libs/ e scipy.libs/.", None),
+    ("Microsoft Visual C++ Runtime", "msvcp140.dll", "Microsoft Redistributable",
+     "Ridistribuibile secondo i termini di Microsoft Visual Studio.\n"
+     "Copyright (c) Microsoft Corporation.", None),
+    ("Godot Engine", "4.6.1-stable", "MIT",
+     "Copyright (c) 2014-2025 Godot Engine contributors.\n"
+     "Copyright (c) 2007-2014 Juan Linietsky, Ariel Manzur.\n"
+     "Il motore e' incorporato nell'eseguibile dell'applicazione.", None),
+]
+
+## MPL-2.0 chiede di indicare dove si trova il sorgente del componente.
+SORGENTI = {
+    "certifi": "https://github.com/certifi/python-certifi",
+    "tqdm": "https://github.com/tqdm/tqdm",
+}
+
+INTESTAZIONE = """SPRITE SHEEP — LICENZE DEI COMPONENTI DI TERZE PARTI
+====================================================================
+
+Sprite Sheep distribuisce, insieme alla propria applicazione, un interprete
+Python e alcune librerie. Sotto ci sono avvisi di copyright e testi di licenza
+di ciascun componente, come le rispettive licenze richiedono.
+
+Nessun componente qui elencato e' soggetto a copyleft forte: usare Sprite Sheep
+non impone obblighi sul codice di chi lo usa, ne' sulle immagini che produce.
+
+I pesi dei modelli di generazione NON sono distribuiti con questo pacchetto:
+li scarica l'utente da HuggingFace, dopo aver letto e accettato la licenza del
+modello. Quelle licenze sono cosa distinta da questo file, e la MiniMax H3
+Community License in particolare pone limiti territoriali: il programma la
+mostra per intero prima del download.
+
+Generato da build_licenze.py leggendo il runtime effettivamente distribuito.
+
+"""
+
+
+def campi(meta: str) -> dict:
+    d = {}
+    for riga in meta.splitlines():
+        if not riga.strip():
+            break                      # finita l'intestazione, inizia il corpo
+        for chiave in ("Name", "Version", "License-Expression", "License",
+                       "Author", "Author-email", "Home-page"):
+            marca = chiave + ":"
+            if riga.startswith(marca) and chiave not in d:
+                d[chiave] = riga[len(marca):].strip()
+        if riga.startswith("Classifier: License ::"):
+            d.setdefault("Classifier", riga.split("::")[-1].strip())
+        if riga.startswith("Project-URL:") and "ource" in riga:
+            d.setdefault("Source", riga.split(",", 1)[-1].strip())
+    return d
+
+
+def licenza_di(d: dict) -> str:
+    for chiave in ("License-Expression", "Classifier", "License"):
+        v = (d.get(chiave) or "").strip()
+        # Certi pacchetti mettono l'intero testo della licenza nel campo
+        # License: in quel caso non e' un identificativo e non va usato.
+        if v and len(v) < 60 and "\n" not in v:
+            return v
+    return "vedi testo sotto"
+
+
+def testo_licenza(info: Path) -> str:
+    cartella = info / "licenses"
+    file = []
+    if cartella.is_dir():
+        file = sorted(p for p in cartella.rglob("*") if p.is_file())
+    if not file:
+        file = sorted(p for p in info.glob("LICENSE*") if p.is_file())
+    pezzi = []
+    for p in file[:3]:                 # alcuni pacchetti ne hanno molti
+        try:
+            t = p.read_text(encoding="utf-8", errors="replace").strip()
+        except OSError:
+            continue
+        if t:
+            pezzi.append(t)
+    return "\n\n".join(pezzi)
+
+
+def componi(dist: Path) -> str:
+    sp = dist / "python" / "Lib" / "site-packages"
+    if not sp.is_dir():
+        sys.exit("runtime non trovato in %s" % dist)
+
+    fuori = [INTESTAZIONE, "=" * 68, "INDICE DEI COMPONENTI", "=" * 68, ""]
+    voci = []
+
+    for nome, ver, lic, avviso, rimando in A_MANO:
+        voci.append((nome, ver, lic, avviso, rimando, ""))
+
+    for info in sorted(sp.glob("*.dist-info"), key=lambda p: p.name.lower()):
+        meta = info / "METADATA"
+        if not meta.exists():
+            continue
+        d = campi(meta.read_text(encoding="utf-8", errors="replace"))
+        nome = d.get("Name", info.name.split("-")[0])
+        avviso = d.get("Author") or d.get("Author-email") or ""
+        voci.append((nome, d.get("Version", "?"), licenza_di(d),
+                     ("Autore: " + avviso) if avviso else "",
+                     None, testo_licenza(info)))
+
+    larghezza = max(len(v[0]) for v in voci)
+    for nome, ver, lic, _a, _r, _t in voci:
+        fuori.append("  %-*s  %-28s  %s" % (larghezza, nome, ver[:28], lic))
+    fuori.append("")
+
+    for nome, ver, lic, avviso, rimando, testo in voci:
+        fuori.append("")
+        fuori.append("=" * 68)
+        fuori.append("%s %s" % (nome, ver))
+        fuori.append("Licenza: %s" % lic)
+        if nome in SORGENTI:
+            fuori.append("Codice sorgente: %s" % SORGENTI[nome])
+            fuori.append("(MPL-2.0: il componente e' distribuito non modificato)")
+        fuori.append("=" * 68)
+        if avviso:
+            fuori.append("")
+            fuori.append(avviso)
+        if rimando:
+            fuori.append("")
+            fuori.append("Testo completo della licenza: %s" % rimando)
+        if testo:
+            fuori.append("")
+            fuori.append(testo)
+        fuori.append("")
+
+    return "\n".join(fuori) + "\n"
+
+
+for dist in DISTRIBUZIONI:
+    if not dist.is_dir():
+        print("saltata (assente):", dist.name)
+        continue
+    testo = componi(dist)
+    (dist / FUORI).write_text(testo, encoding="utf-8")
+    n_comp = testo.count("\n" + "=" * 68 + "\n") // 2
+    print("%-14s %s  %6.1f KB, %d componenti"
+          % (dist.name, FUORI, len(testo.encode("utf-8")) / 1024, n_comp))

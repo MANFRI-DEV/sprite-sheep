@@ -1,0 +1,156 @@
+[gd_scene load_steps=2 format=3 uid="uid://b1spritesheep0gen"]
+
+[ext_resource type="Script" path="res://scripts/pannello_genera.gd" id="1_gen"]
+
+[node name="PannelloGenera" type="PanelContainer"]
+script = ExtResource("1_gen")
+
+[node name="Margine" type="MarginContainer" parent="."]
+layout_mode = 2
+theme_override_constants/margin_left = 16
+theme_override_constants/margin_top = 10
+theme_override_constants/margin_right = 16
+theme_override_constants/margin_bottom = 10
+
+[node name="Colonna" type="VBoxContainer" parent="Margine"]
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="Titolo" type="Label" parent="Margine/Colonna"]
+layout_mode = 2
+text = "3. Generazione"
+theme_override_font_sizes/font_size = 16
+
+[node name="RigaNome" type="HBoxContainer" parent="Margine/Colonna"]
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="LblNome" type="Label" parent="Margine/Colonna/RigaNome"]
+custom_minimum_size = Vector2(80, 0)
+layout_mode = 2
+text = "Nome"
+theme_override_colors/font_color = Color(0.6, 0.65, 0.72, 1)
+theme_override_font_sizes/font_size = 12
+
+[node name="NomeEdit" type="LineEdit" parent="Margine/Colonna/RigaNome"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+text = "idle"
+placeholder_text = "idle, walk, run..."
+
+[node name="RigaDurata" type="HBoxContainer" parent="Margine/Colonna"]
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="LblDurata" type="Label" parent="Margine/Colonna/RigaDurata"]
+custom_minimum_size = Vector2(80, 0)
+layout_mode = 2
+text = "Durata"
+theme_override_colors/font_color = Color(0.6, 0.65, 0.72, 1)
+theme_override_font_sizes/font_size = 12
+
+[node name="DurataSlider" type="HSlider" parent="Margine/Colonna/RigaDurata"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 4
+min_value = 2.0
+max_value = 10.0
+step = 0.5
+value = 2.0
+
+[node name="DurataLabel" type="Label" parent="Margine/Colonna/RigaDurata"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(52, 0)
+layout_mode = 2
+text = "2.0 s"
+horizontal_alignment = 2
+
+[node name="RigaFrame" type="HBoxContainer" parent="Margine/Colonna"]
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="LblFrame" type="Label" parent="Margine/Colonna/RigaFrame"]
+custom_minimum_size = Vector2(80, 0)
+layout_mode = 2
+text = "Frame"
+theme_override_colors/font_color = Color(0.6, 0.65, 0.72, 1)
+theme_override_font_sizes/font_size = 12
+
+[node name="FrameSpin" type="SpinBox" parent="Margine/Colonna/RigaFrame"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+min_value = 4.0
+max_value = 64.0
+value = 25.0
+
+[node name="PianoLabel" type="RichTextLabel" parent="Margine/Colonna"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 56)
+layout_mode = 2
+bbcode_enabled = true
+fit_content = true
+
+[node name="ScontornaCheck" type="CheckBox" parent="Margine/Colonna"]
+unique_name_in_owner = true
+layout_mode = 2
+button_pressed = true
+text = "Rimuovi lo sfondo dai frame generati"
+
+[node name="ScontornaNota" type="Label" parent="Margine/Colonna"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.498, 0.529, 0.596, 1)
+theme_override_font_sizes/font_size = 11
+text = "Senza, lo sprite sheet esce con lo sfondo pieno del prompt."
+autowrap_mode = 3
+
+[node name="Sep" type="HSeparator" parent="Margine/Colonna"]
+layout_mode = 2
+
+[node name="GeneraButton" type="Button" parent="Margine/Colonna"]
+unique_name_in_owner = true
+layout_mode = 2
+disabled = true
+text = "Servono sprite, prompt valido e modello"
+
+[node name="Barra" type="ProgressBar" parent="Margine/Colonna"]
+unique_name_in_owner = true
+layout_mode = 2
+max_value = 100.0
+value = 0.0
+
+[node name="EsitoLabel" type="RichTextLabel" parent="Margine/Colonna"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 40)
+layout_mode = 2
+bbcode_enabled = true
+fit_content = true
+selection_enabled = true
+
+[node name="TracciaEdit" type="TextEdit" parent="Margine/Colonna"]
+unique_name_in_owner = true
+visible = false
+custom_minimum_size = Vector2(0, 120)
+layout_mode = 2
+editable = false
+wrap_mode = 1
+
+[node name="RigaErrore" type="HBoxContainer" parent="Margine/Colonna"]
+unique_name_in_owner = true
+visible = false
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="CopiaErroreButton" type="Button" parent="Margine/Colonna/RigaErrore"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Copia errore"
+
+[node name="TracciaButton" type="Button" parent="Margine/Colonna/RigaErrore"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Mostra traccia"

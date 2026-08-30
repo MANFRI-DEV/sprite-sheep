@@ -1,0 +1,125 @@
+[gd_scene load_steps=2 format=3 uid="uid://b1spritesheep0ris"]
+
+[ext_resource type="Script" path="res://scripts/pannello_risultato.gd" id="1_ris"]
+
+[node name="PannelloRisultato" type="PanelContainer"]
+script = ExtResource("1_ris")
+
+[node name="Margine" type="MarginContainer" parent="."]
+layout_mode = 2
+theme_override_constants/margin_left = 16
+theme_override_constants/margin_top = 10
+theme_override_constants/margin_right = 16
+theme_override_constants/margin_bottom = 10
+
+[node name="Colonna" type="VBoxContainer" parent="Margine"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="Titolo" type="Label" parent="Margine/Colonna"]
+layout_mode = 2
+text = "4. Risultato"
+theme_override_font_sizes/font_size = 16
+
+[node name="Vuoto" type="Label" parent="Margine/Colonna"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Qui compaiono l'animazione e il foglio appena pronti."
+autowrap_mode = 3
+theme_override_colors/font_color = Color(0.5, 0.53, 0.6, 1)
+theme_override_font_sizes/font_size = 12
+
+[node name="Contenuto" type="VBoxContainer" parent="Margine/Colonna"]
+unique_name_in_owner = true
+visible = false
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="RigaViste" type="HBoxContainer" parent="Margine/Colonna/Contenuto"]
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="BoxAnim" type="VBoxContainer" parent="Margine/Colonna/Contenuto/RigaViste"]
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="LblAnim" type="Label" parent="Margine/Colonna/Contenuto/RigaViste/BoxAnim"]
+layout_mode = 2
+text = "Animazione"
+theme_override_colors/font_color = Color(0.5, 0.53, 0.6, 1)
+theme_override_font_sizes/font_size = 11
+
+[node name="Anteprima" type="TextureRect" parent="Margine/Colonna/Contenuto/RigaViste/BoxAnim"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(160, 160)
+layout_mode = 2
+expand_mode = 1
+stretch_mode = 5
+
+[node name="BoxFoglio" type="VBoxContainer" parent="Margine/Colonna/Contenuto/RigaViste"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 4
+
+[node name="LblFoglio" type="Label" parent="Margine/Colonna/Contenuto/RigaViste/BoxFoglio"]
+layout_mode = 2
+text = "Foglio"
+theme_override_colors/font_color = Color(0.5, 0.53, 0.6, 1)
+theme_override_font_sizes/font_size = 11
+
+[node name="Foglio" type="TextureRect" parent="Margine/Colonna/Contenuto/RigaViste/BoxFoglio"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 160)
+layout_mode = 2
+size_flags_horizontal = 3
+expand_mode = 1
+stretch_mode = 5
+
+[node name="RigaFps" type="HBoxContainer" parent="Margine/Colonna/Contenuto"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="PausaButton" type="Button" parent="Margine/Colonna/Contenuto/RigaFps"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Pausa"
+
+[node name="FpsSlider" type="HSlider" parent="Margine/Colonna/Contenuto/RigaFps"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 4
+min_value = 1.0
+max_value = 30.0
+value = 12.0
+
+[node name="FpsLabel" type="Label" parent="Margine/Colonna/Contenuto/RigaFps"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(56, 0)
+layout_mode = 2
+text = "12 fps"
+horizontal_alignment = 2
+theme_override_font_sizes/font_size = 12
+
+[node name="DatiLabel" type="RichTextLabel" parent="Margine/Colonna/Contenuto"]
+unique_name_in_owner = true
+layout_mode = 2
+bbcode_enabled = true
+fit_content = true
+scroll_active = false
+
+[node name="RigaAzioni" type="HBoxContainer" parent="Margine/Colonna/Contenuto"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="CartellaButton" type="Button" parent="Margine/Colonna/Contenuto/RigaAzioni"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Apri cartella"
+
+[node name="CopiaPercorsoButton" type="Button" parent="Margine/Colonna/Contenuto/RigaAzioni"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Copia percorso"

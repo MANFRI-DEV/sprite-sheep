@@ -1,0 +1,39 @@
+# Godot: cache di importazione e stato locale dell'editor. Si rigenerano da
+# soli al primo avvio, e versionarli produce conflitti a ogni commit perche'
+# cambiano anche solo aprendo il progetto.
+godot/.godot/
+*.tmp
+
+# Build e pacchetti. Pesano oltre 100 MB l'uno: su GitHub vanno come
+# *release*, non come file del repository.
+dist/
+*.zip
+
+# Pesi dei modelli: decine di gigabyte, scaricati dall'applicazione dopo
+# l'accettazione delle rispettive licenze. Non possono stare in un repository
+# ne' tecnicamente ne' giuridicamente.
+models/
+cache/
+output/
+
+# Runtime Python incorporato: si ricostruisce con `build_runtime.py`.
+python/
+__pycache__/
+*.pyc
+
+# Materiale della vecchia doppia edizione, tenuto in locale per confronto.
+_archivio/
+
+# Marcatore d'edizione: sopravvivenza della 0.9. Se finisse in un pacchetto
+# riaccenderebbe la filigrana.
+sidecar/edizione.cfg
+
+# Note di lavoro interne: istruzioni per l'assistente e diario di
+# avanzamento. Restano sul disco, fuori dal repository pubblico.
+CLAUDE.md
+PROGRESS.md
+
+# Sistema
+Thumbs.db
+desktop.ini
+.DS_Store
