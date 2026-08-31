@@ -33,9 +33,24 @@ ZIP = RADICE / ("SpriteSheep-%s-win64.zip" % VERSIONE)
 ESEGUIBILE = "SpriteSheep.exe"
 
 ## Roba che non va nel pacchetto: cache di importazione, stato dell'editor,
-## bytecode Python, e i pesi dei modelli, che pesano decine di gigabyte.
+## bytecode Python.
 SALTA_SIDECAR = shutil.ignore_patterns("__pycache__", "*.pyc", "*.log",
                                        "edizione.cfg")
+
+## Cartelle che l'applicazione **crea dentro `dist/` mentre gira**, e che nel
+## pacchetto non devono finire.
+##
+## `models/` sono i pesi scaricati dall'utente: 39 GB. Il primo zip fatto senza
+## questa esclusione pesava 13 GB compressi, ed e' stato accorto guardarlo
+## invece di fidarsi — `rglob("*")` prende tutto quello che trova, e cio' che
+## trova dipende da quanto l'applicazione e' stata usata prima della build.
+## Un pacchetto il cui contenuto cambia a seconda di cosa e' successo prima
+## non e' riproducibile.
+##
+## I pesi si scaricano dall'applicazione dopo aver accettato la licenza di
+## ciascuno: nel pacchetto non potrebbero starci ne' tecnicamente ne'
+## giuridicamente.
+NON_IMPACCHETTARE = {"models", "cache", "output", "__pycache__"}
 
 
 def passo(t: str) -> None:
@@ -96,12 +111,23 @@ def main() -> None:
     if ZIP.exists():
         ZIP.unlink()
     n = 0
+    byte = 0
     with zipfile.ZipFile(ZIP, "w", zipfile.ZIP_DEFLATED, compresslevel=6) as f:
         for q in sorted(DIST.rglob("*")):
-            if q.is_file():
-                f.write(q, str(Path("SpriteSheep") / q.relative_to(DIST)))
-                n += 1
-    print("   file: %d | compresso %.1f MB" % (n, ZIP.stat().st_size / 1e6))
+            if not q.is_file():
+                continue
+            rel = q.relative_to(DIST)
+            if NON_IMPACCHETTARE & set(rel.parts):
+                continue
+            f.write(q, str(Path("SpriteSheep") / rel))
+            n += 1
+            byte += q.stat().st_size
+    print("   file: %d | %.0f MB dentro, %.1f MB compresso"
+          % (n, byte / 1e6, ZIP.stat().st_size / 1e6))
+    # Una build sana sta sotto il mezzo giga: eseguibile, runtime Python e
+    # sidecar. Oltre, e' finito dentro qualcosa che non doveva.
+    if ZIP.stat().st_size > 500e6:
+        raise SystemExit("il pacchetto e' troppo grande: controlla dist/")
     print("\npronto: %s" % ZIP)
 
 

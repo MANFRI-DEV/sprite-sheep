@@ -1,146 +1,77 @@
-[gd_scene load_steps=2 format=3 uid="uid://b1spritesheep0prm"]
+[gd_scene load_steps=3 format=3 uid="uid://c6spritesheep0prompt"]
 
-[ext_resource type="Script" path="res://scripts/pannello_prompt.gd" id="1_prm"]
+[ext_resource type="Script" path="res://scripts/pannello_prompt.gd" id="1_prompt"]
+[ext_resource type="Script" path="res://scripts/grafo_prompt.gd" id="2_grafo"]
 
 [node name="PannelloPrompt" type="PanelContainer"]
-script = ExtResource("1_prm")
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+script = ExtResource("1_prompt")
 
 [node name="Margine" type="MarginContainer" parent="."]
 layout_mode = 2
-theme_override_constants/margin_left = 16
+theme_override_constants/margin_left = 12
 theme_override_constants/margin_top = 10
-theme_override_constants/margin_right = 16
+theme_override_constants/margin_right = 12
 theme_override_constants/margin_bottom = 10
 
 [node name="Colonna" type="VBoxContainer" parent="Margine"]
 layout_mode = 2
-theme_override_constants/separation = 6
+theme_override_constants/separation = 8
 
 [node name="Titolo" type="Label" parent="Margine/Colonna"]
 layout_mode = 2
-text = "2. Prompt"
+text = "Prompt"
 theme_override_font_sizes/font_size = 16
 
-[node name="LblSoggetto" type="Label" parent="Margine/Colonna"]
+[node name="Aiuto" type="Label" parent="Margine/Colonna"]
 layout_mode = 2
-text = "Soggetto — cosa si vede, di lato, verso dove guarda"
-theme_override_colors/font_color = Color(0.6, 0.65, 0.72, 1)
-theme_override_font_sizes/font_size = 12
-
-[node name="SoggettoEdit" type="TextEdit" parent="Margine/Colonna"]
-unique_name_in_owner = true
-custom_minimum_size = Vector2(0, 40)
-layout_mode = 2
-placeholder_text = "A 2D cartoon sprite of a chubby blue fish with large round eyes, seen from the side facing left."
-wrap_mode = 1
-
-[node name="LblStile" type="Label" parent="Margine/Colonna"]
-layout_mode = 2
-text = "Stile"
-theme_override_colors/font_color = Color(0.6, 0.65, 0.72, 1)
-theme_override_font_sizes/font_size = 12
-
-[node name="StileEdit" type="LineEdit" parent="Margine/Colonna"]
-unique_name_in_owner = true
-layout_mode = 2
-placeholder_text = "Clean crisp line art, flat cel shading, limited palette."
-
-[node name="LblSfondo" type="Label" parent="Margine/Colonna"]
-layout_mode = 2
-text = "Sfondo"
-theme_override_colors/font_color = Color(0.6, 0.65, 0.72, 1)
-theme_override_font_sizes/font_size = 12
-
-[node name="SfondoEdit" type="LineEdit" parent="Margine/Colonna"]
-unique_name_in_owner = true
-layout_mode = 2
-text = "The background is a completely plain flat pure white field and never changes."
-
-[node name="LblCamera" type="Label" parent="Margine/Colonna"]
-layout_mode = 2
-text = "Camera"
-theme_override_colors/font_color = Color(0.6, 0.65, 0.72, 1)
-theme_override_font_sizes/font_size = 12
-
-[node name="CameraOption" type="OptionButton" parent="Margine/Colonna"]
-unique_name_in_owner = true
-layout_mode = 2
-
-[node name="RigaPassi" type="HBoxContainer" parent="Margine/Colonna"]
-layout_mode = 2
-theme_override_constants/separation = 8
-
-[node name="LblAzione" type="Label" parent="Margine/Colonna/RigaPassi"]
-layout_mode = 2
-size_flags_horizontal = 3
-text = "Azione — un testo per passo"
-theme_override_colors/font_color = Color(0.6, 0.65, 0.72, 1)
-theme_override_font_sizes/font_size = 12
-
-[node name="NumPassiSpin" type="SpinBox" parent="Margine/Colonna/RigaPassi"]
-unique_name_in_owner = true
-custom_minimum_size = Vector2(70, 0)
-layout_mode = 2
-min_value = 1.0
-max_value = 8.0
-value = 2.0
-prefix = "x"
-
-[node name="Passi" type="VBoxContainer" parent="Margine/Colonna"]
-unique_name_in_owner = true
-layout_mode = 2
-theme_override_constants/separation = 4
-
-[node name="NotaPassi" type="Label" parent="Margine/Colonna"]
-layout_mode = 2
-text = "I tempi sono quelli dell'animazione finale. Nel prompt vengono riscalati sulla clip generata, che e' piu' lunga."
-autowrap_mode = 3
-theme_override_colors/font_color = Color(0.45, 0.5, 0.57, 1)
+text = "Ogni blocco e' una parte del prompt. Stacca un filo per escluderlo."
 theme_override_font_sizes/font_size = 11
 
-[node name="CiclicoCheck" type="CheckBox" parent="Margine/Colonna"]
+[node name="Grafo" type="GraphEdit" parent="Margine/Colonna"]
 unique_name_in_owner = true
 layout_mode = 2
-button_pressed = true
-text = "Animazione ciclica (ultimo frame = primo)"
+size_flags_vertical = 3
+custom_minimum_size = Vector2(0, 380)
+script = ExtResource("2_grafo")
 
 [node name="NotaModello" type="Label" parent="Margine/Colonna"]
 unique_name_in_owner = true
 layout_mode = 2
-autowrap_mode = 3
-theme_override_colors/font_color = Color(0.36, 0.81, 0.49, 1)
 theme_override_font_sizes/font_size = 11
 
 [node name="ComponiButton" type="Button" parent="Margine/Colonna"]
 unique_name_in_owner = true
 layout_mode = 2
-text = "Componi prompt"
+text = "Componi"
 
 [node name="Sep" type="HSeparator" parent="Margine/Colonna"]
 layout_mode = 2
 
 [node name="TestoEdit" type="TextEdit" parent="Margine/Colonna"]
 unique_name_in_owner = true
-custom_minimum_size = Vector2(0, 84)
 layout_mode = 2
-placeholder_text = "Il prompt composto appare qui. Puoi modificarlo a mano."
+custom_minimum_size = Vector2(0, 120)
 wrap_mode = 1
+placeholder_text = "Il testo composto compare qui. Modificandolo, comandi tu."
 
 [node name="Semaforo" type="HBoxContainer" parent="Margine/Colonna"]
 layout_mode = 2
-theme_override_constants/separation = 10
+theme_override_constants/separation = 8
 
 [node name="Spia" type="ColorRect" parent="Margine/Colonna/Semaforo"]
 unique_name_in_owner = true
-custom_minimum_size = Vector2(16, 16)
 layout_mode = 2
+custom_minimum_size = Vector2(14, 14)
 size_flags_vertical = 4
 color = Color(0.85, 0.3, 0.3, 1)
 
 [node name="EsitoLabel" type="RichTextLabel" parent="Margine/Colonna/Semaforo"]
 unique_name_in_owner = true
-custom_minimum_size = Vector2(0, 38)
 layout_mode = 2
 size_flags_horizontal = 3
+custom_minimum_size = Vector2(0, 46)
 bbcode_enabled = true
 fit_content = true

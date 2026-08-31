@@ -150,12 +150,52 @@ def _oggetti_negati(testo: str) -> list[str]:
     return sorted(set(trovati))
 
 
-def valida(testo: str, durata_s: float = 2.0,
-           modello: str | None = None) -> dict:
+## Le tre parti che il prompt dovrebbe avere ma la cui assenza non impedisce di
+## generare: quale campo le contiene, e con quale parola si riconoscono in un
+## testo scritto a mano.
+_PARTI = [
+    ("soggetto", "identical in every", "prompt.no_identita"),
+    ("camera", "camera", "prompt.no_camera"),
+    ("sfondo", "background", "prompt.no_sfondo"),
+]
+
+
+def _mancanti(testo: str, campi: dict | None) -> list[str]:
+    """Quali delle tre parti non ci sono, guardando i campi se li abbiamo.
+
+    Per l'identita' il campo da controllare e' `soggetto`, non un campo suo:
+    il blocco IDENTITA lo aggiunge `_componi_h3` da solo ogni volta che c'e'
+    un soggetto, quindi non e' una cosa che l'utente possa dimenticare — puo'
+    solo non aver scritto il soggetto.
+    """
+    if campi is None:
+        basso = testo.lower()
+        return [chiave for _, parola, chiave in _PARTI if parola not in basso]
+    return [chiave for campo, _, chiave in _PARTI
+            if not (campi.get(campo) or "").strip()]
+
+
+def valida(testo: str, durata_s: float = 2.0, modello: str | None = None,
+           campi: dict | None = None) -> dict:
     """Restituisce esito, problemi bloccanti e avvisi.
 
     semaforo: "verde" generabile, "giallo" generabile ma migliorabile,
               "rosso" da correggere prima di generare.
+
+    `campi` sono i campi da cui il testo e' stato composto, quando esistono.
+    Averli cambia la qualita' di tre controlli — identita', camera e sfondo —
+    che senza si riducono a cercare una parola inglese nel testo:
+
+        if "background" not in testo.lower(): ...
+
+    Bastava descrivere lo sfondo con altre parole ("solid white, no scenery"),
+    o scriverlo in italiano, e il programma diceva che mancava una cosa che
+    c'era. Un avviso che ha torto e' peggio di nessun avviso: insegna a
+    ignorare anche quelli giusti.
+
+    Quando i campi ci sono si guarda **il campo**, che e' l'informazione vera.
+    La ricerca nel testo resta per il caso in cui i campi non esistano
+    davvero: il prompt scritto o incollato a mano.
     """
     testo = testo or ""
     dial = dialetto(modello)
@@ -199,12 +239,8 @@ def valida(testo: str, durata_s: float = 2.0,
     if negati:
         problemi.append(t("prompt.negati", elenco=", ".join(negati[:3])))
 
-    if "identical in every" not in testo.lower():
-        avvisi.append(t("prompt.no_identita"))
-    if "camera" not in testo.lower():
-        avvisi.append(t("prompt.no_camera"))
-    if "background" not in testo.lower():
-        avvisi.append(t("prompt.no_sfondo"))
+    for chiave in _mancanti(testo, campi):
+        avvisi.append(t(chiave))
 
     if problemi:
         semaforo = "rosso"

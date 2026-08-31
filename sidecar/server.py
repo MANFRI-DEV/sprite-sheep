@@ -217,12 +217,19 @@ class Handler(BaseHTTPRequestHandler):
                 # Se arriva gia' un testo (l'utente l'ha modificato a mano)
                 # si valida quello; altrimenti si compone dai campi.
                 testo = dati.get("testo")
+                campi = None
                 if not testo:
-                    testo = prompt_mod.componi(dati.get("campi", {}), mod)
+                    campi = dati.get("campi", {})
+                    testo = prompt_mod.componi(campi, mod)
+                # I campi si passano alla validazione **solo** quando il testo
+                # e' stato composto da loro. Se l'utente l'ha riscritto a mano,
+                # i campi non descrivono piu' cio' che si sta per generare, e
+                # fidarsene direbbe che c'e' uno sfondo che nel testo non c'e'
+                # piu'.
                 self._json(200, {
                     "ok": True,
                     "testo": testo,
-                    "validazione": prompt_mod.valida(testo, durata, mod),
+                    "validazione": prompt_mod.valida(testo, durata, mod, campi),
                 })
 
             elif rotta == "/licenza":
