@@ -1,28 +1,28 @@
-# 🐑 Benvenuto in Sprite Sheep
+# 🐑 Welcome to Sprite Sheep
 
-**Sprite Sheep** trasforma uno sprite fermo in uno **sprite sheet animato** e una **GIF**, con modelli di diffusione video che girano sul tuo PC. Niente cloud, niente abbonamenti: tutto resta sulla tua macchina.
+**Sprite Sheep** turns a still sprite into an **animated sprite sheet** and a **GIF**, using video diffusion models that run on your own PC. No cloud, no subscription: everything stays on your machine.
 
-## Come funziona
-Dai al programma **uno sprite** e **un prompt a campi** (soggetto, stile, sfondo, camera, i passi dell'animazione). Lui lo compone nel dialetto del modello scelto, genera la clip, ne estrae i frame, li scontorna su sfondo trasparente e li impagina in un foglio pronto da usare.
+## How it works
+You give the program **one sprite** and **a prompt built from fields** — subject, style, background, camera, and the steps of the animation. It composes that into the dialect the chosen model expects, generates the clip, pulls the frames out, keys the background to transparent and lays them out into a sheet you can use straight away.
 
-## Cosa ti serve
-> **GPU NVIDIA con almeno 8 GB di VRAM** · **ComfyUI** installata · **un modello** a scelta
-> Python **non** serve: il programma si porta dietro il proprio.
+## What you need
+> **An NVIDIA GPU with at least 8 GB of VRAM** · **ComfyUI** installed · **one model** of your choice
+> Python is **not** required: the program carries its own.
 
-## I modelli
-🟢 **MiniMax H3** — 38,9 GB · circa **9-10 minuti** per 2 secondi su una RTX 3050. È quello che consigliamo oggi.
-🟡 **WAN 2.2** — 16,9 GB · **in lavorazione**: il decode va in stallo sotto gli 8 GB di VRAM. Selezionabile, ma non ancora affidabile.
+## The models
+🟢 **MiniMax H3** — 38.9 GB · about **9–10 minutes** for 2 seconds on an RTX 3050. This is the one we recommend today.
+🟡 **WAN 2.2** — 16.9 GB · **in progress**: the decode stalls under 8 GB of VRAM. Selectable, but not reliable yet.
 
-⚠️ **Leggi la licenza prima di scaricare.** La *MiniMax H3 Community License* esclude **Unione Europea, Regno Unito, Corea del Sud e Stati Uniti**, e la clausola cita anche gli output prodotti. Il programma te la mostra per intero e blocca il download finché non l'accetti. WAN 2.2 è Apache 2.0, senza vincoli territoriali.
+⚠️ **Read the licence before downloading.** The *MiniMax H3 Community License* excludes the **European Union, the United Kingdom, South Korea and the United States**, and the clause covers the outputs you produce as well. The program shows it to you in full and blocks the download until you accept it. WAN 2.2 is Apache 2.0, with no territorial restrictions.
 
-## Stato: pre-alpha 0.0.2
-Edizione unica, senza filigrana e senza limiti di generazione. È software molto
-giovane e lo diciamo apertamente: funziona, ma ha spigoli. Se trovi un difetto, apri un post in **#segnalazioni** allegando il testo del pulsante *Copia diagnostica*: contiene GPU, versione e percorsi, ed è quello che serve per capire cosa è successo.
+## Status: pre-alpha 0.0.2
+A single edition, no watermark and no generation limits. This is very young
+software and we say so openly: it works, but it has rough edges. If you find a bug, post in **#reports** and attach what the *Copy diagnostics* button gives you: it contains GPU, version and paths, and that is what makes a report answerable.
 
-## Da dove partire
-1️⃣ Leggi 📌 **#installazione** — tre passi, mezz'ora scarsa contando i download
-2️⃣ Mostra quello che generi in 🎨 **#creazioni**
-3️⃣ Prompt che funzionano e ricette in 💡 **#prompt-utili**
-4️⃣ Domande in ❓ **#supporto**
+## Where to start
+1️⃣ Read 📌 **#install** — three steps, half an hour at most counting downloads
+2️⃣ Show what you make in 🎨 **#creations**
+3️⃣ Prompts that work, and recipes, in 💡 **#useful-prompts**
+4️⃣ Questions in ❓ **#support**
 
-Buone animazioni. 🐑
+Happy animating. 🐑

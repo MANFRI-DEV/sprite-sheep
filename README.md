@@ -1,75 +1,95 @@
 # Sprite Sheep
 
-Da uno sprite e un prompt genera uno **sprite sheet animato** e una GIF, in
-locale, usando modelli di diffusione video.
+From one sprite and a prompt, generates an **animated sprite sheet** and a GIF,
+locally, using video diffusion models.
 
-> **Pre-alpha 0.0.2.** Funziona, ma ha spigoli. Le interfacce e i formati
-> possono cambiare senza preavviso.
+> **Pre-alpha 0.0.2.** It works, but it has rough edges. Interfaces and formats
+> may change without notice.
 
 ![Sprite Sheep](schermata.png)
 
-## Cosa fa
+## What it does
 
-Carichi il disegno di un personaggio, scrivi cosa deve fare, e ottieni una
-griglia 5×5 di 25 fotogrammi con lo sfondo trasparente, più l'anteprima
-animata. Il modello video genera il movimento; il programma ritaglia i
-fotogrammi, li scontorna e li compone.
+You load a character drawing, write what it should do, and get a 5×5 grid of 25
+frames with a transparent background, plus an animated preview. The video model
+generates the movement; the program cuts the frames out, keys the background
+and composes the sheet.
 
-## Come è fatto
+## How it is built
 
-Due pezzi che parlano fra loro su `localhost`:
+Two pieces talking to each other over `localhost`:
 
 | | |
 |---|---|
-| `godot/` | l'interfaccia, in Godot 4.6 |
-| `sidecar/` | il servizio Python che fa l'inferenza |
+| `godot/` | the interface, in Godot 4.6 |
+| `sidecar/` | the Python service that drives inference |
 
-Godot **non può** fare inferenza: servono PyTorch e CUDA. Avvia quindi il
-sidecar come processo figlio e ci dialoga via HTTP. Il calcolo pesante lo fa
-ComfyUI, che ha il suo ambiente.
+Godot **cannot** run inference: that needs PyTorch and CUDA. So it starts the
+sidecar as a child process and talks to it over HTTP. The heavy lifting is done
+by ComfyUI, which has its own environment.
 
-## Cosa serve per usarlo
+## What you need to run it
 
-1. **ComfyUI** installato e funzionante
-2. **Un modello** fra quelli supportati, scaricabile dal programma stesso
-3. Una GPU NVIDIA con almeno 8 GB di VRAM
+1. **ComfyUI**, installed and working
+2. **A model**, downloadable from within the program
+3. An NVIDIA GPU with at least 8 GB of VRAM
 
-Il programma controlla da solo cosa manca e lo dice nella finestra
-Impostazioni.
+The program checks by itself what is missing and says so in the Settings
+window.
 
-### Modelli
+### Models
 
-| Modello | Peso | Licenza |
+| Model | Size | Licence |
 |---|---|---|
-| MiniMax H3 | 38,9 GB | Community License — **esclude UE, Regno Unito, Corea del Sud, Stati Uniti**, e la clausola cita anche gli output |
-| WAN 2.2 | 16,9 GB | Apache 2.0, nessun vincolo territoriale |
+| MiniMax H3 | 38.9 GB | Community License — **excludes the EU, the UK, South Korea and the United States**, and the clause covers the outputs as well |
+| WAN 2.2 | 16.9 GB | Apache 2.0, no territorial restrictions |
 
-WAN 2.2 è **in lavorazione**: il decode del VAE va in stallo sotto gli 8 GB di
-VRAM. Selezionabile, ma non ancora affidabile.
+**MiniMax H3 is the one that works.** WAN 2.2 is **in progress**: the VAE decode
+thrashes under 8 GB of VRAM and does not finish. It is selectable, but not
+reliable yet.
 
-Il programma mostra la licenza per intero e blocca il download finché non la
-accetti. **Leggila**: quella di MiniMax H3 ha restrizioni territoriali che
-riguardano anche ciò che produci.
+The program shows the licence in full and blocks the download until you accept
+it. **Read it**: MiniMax H3's carries territorial restrictions that cover what
+you produce with it, not only the model itself.
 
-## Compilare
+## Building
 
 ```
-python build_runtime.py     # runtime Python incorporato
-python build_licenze.py     # licenze delle dipendenze
-python build.py             # esporta l'eseguibile e fa lo zip
+python build_runtime.py     # embedded Python runtime
+python build_licenze.py     # third-party licences
+python build.py             # exports the executable and makes the zip
 ```
 
-Serve Godot 4.6.1 in `C:\GODOT\`. Il percorso è in cima a `build.py`.
+Requires Godot 4.6.1 in `C:\GODOT\`. The path is at the top of `build.py`.
 
-## Licenze di terze parti
+## A note on the source
 
-`THIRD-PARTY-LICENCES.txt`, generato da `build_licenze.py`, elenca ogni
-dipendenza con la sua licenza. Finisce dentro il pacchetto distribuito.
+Code comments are written in **Italian**, deliberately: they explain why
+something is the way it is, not what the line does, and they were written in
+the author's language to say it precisely. Identifiers, user-facing strings and
+documentation are in English.
 
-## Storia
+## Licence
 
-Fino alla 0.9 esistevano due edizioni, una con la filigrana su ogni fotogramma
-e una senza. Dalla 0.0.1 pre-alpha l'edizione è **una sola, senza filigrana**.
-La numerazione riparte da zero perché il progetto riparte da zero: quello che
-c'era prima era un prototipo con un modello commerciale addosso, questo è il
-programma.
+[MIT](LICENSE) — do what you like with it, keep the copyright notice.
+
+This covers Sprite Sheep's own code. Two things it does **not** cover:
+
+**ComfyUI** is third-party free software under GPL-3.0. Sprite Sheep neither
+redistributes nor embeds it: you install it yourself, and the two programs talk
+over HTTP on localhost.
+
+**The model weights** are not included and remain subject to their authors'
+licences, which the program shows you before downloading. See the warning about
+MiniMax H3 above.
+
+`THIRD-PARTY-LICENCES.txt`, generated by `build_licenze.py`, lists every bundled
+dependency with its licence and ships inside the distributed package.
+
+## History
+
+Up to 0.9 there were two editions, one with a watermark on every frame and one
+without. From 0.0.1 pre-alpha there is **a single edition, without a
+watermark**. The numbering restarts from zero because the project does: what
+came before was a prototype with a commercial model bolted on, this is the
+program.
