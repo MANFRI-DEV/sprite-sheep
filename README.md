@@ -6,6 +6,10 @@ locally, using video diffusion models.
 > **Pre-alpha 0.0.2.** It works, but it has rough edges. Interfaces and formats
 > may change without notice.
 
+**[Download the build on itch.io](https://shaddafare.itch.io/sprite-sheep)** —
+Windows 64-bit, about 105 MB, no build step required. This repository is the
+source; if you just want to try the program, that link is the place to go.
+
 ![Sprite Sheep](schermata.png)
 
 ## What it does
@@ -53,6 +57,9 @@ it. **Read it**: MiniMax H3's carries territorial restrictions that cover what
 you produce with it, not only the model itself.
 
 ## Building
+
+Only needed if you want to change the program. To simply use it, take the
+[itch.io build](https://shaddafare.itch.io/sprite-sheep).
 
 ```
 python build_runtime.py     # embedded Python runtime
