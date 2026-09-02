@@ -1,0 +1,14 @@
+# Sprite Sheep 0.0.2-pre-alpha
+#
+# You do NOT need to install anything: the package carries its own Python in
+# python\, with these libraries already inside.
+#
+# This file is kept as a reference, and for anyone who wants to run the
+# sidecar with their own Python:  pip install -r requirements.txt
+#
+# PyTorch is absent and not needed: the GPU work is done by ComfyUI, which has
+# its own environment.
+pillow>=10.0
+numpy>=1.24
+scipy>=1.10
+huggingface_hub>=0.24

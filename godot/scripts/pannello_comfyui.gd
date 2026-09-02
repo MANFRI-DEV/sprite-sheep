@@ -124,8 +124,13 @@ func _disegna(s: Dictionary) -> void:
 	if _in_avvio:
 		return
 
-	_btn_avvia.disabled = s.get("in_esecuzione", false) or s.get("percorso", null) == null
-	_btn_avvia.text = tr("ComfyUI in esecuzione") if s.get("in_esecuzione", false) else tr("Avvia ComfyUI")
+	# `avviabile` e' falso anche quando ComfyUI c'e' ed e' configurata: le
+	# installazioni **Desktop** non si avviano da qui, perche' il codice non sta
+	# nella cartella che l'utente ha scelto. Il pulsante resta spento e il passo
+	# spiega di aprirla dalla sua applicazione.
+	var acceso: bool = s.get("in_esecuzione", false)
+	_btn_avvia.disabled = acceso or not s.get("avviabile", false)
+	_btn_avvia.text = tr("ComfyUI in esecuzione") if acceso else tr("Avvia ComfyUI")
 
 	if s.get("pronto", false):
 		_riassunto.text = "[color=#5cc76e]%s[/color]\n[color=#7d8695]%s[/color]" % [

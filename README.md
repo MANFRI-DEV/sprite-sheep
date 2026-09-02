@@ -3,7 +3,7 @@
 Da uno sprite e un prompt genera uno **sprite sheet animato** e una GIF, in
 locale, usando modelli di diffusione video.
 
-> **Pre-alpha 0.0.1.** Funziona, ma ha spigoli. Le interfacce e i formati
+> **Pre-alpha 0.0.2.** Funziona, ma ha spigoli. Le interfacce e i formati
 > possono cambiare senza preavviso.
 
 ![Sprite Sheep](schermata.png)
@@ -63,7 +63,7 @@ Serve Godot 4.6.1 in `C:\GODOT\`. Il percorso è in cima a `build.py`.
 
 ## Licenze di terze parti
 
-`LICENZE-TERZE-PARTI.txt`, generato da `build_licenze.py`, elenca ogni
+`THIRD-PARTY-LICENCES.txt`, generato da `build_licenze.py`, elenca ogni
 dipendenza con la sua licenza. Finisce dentro il pacchetto distribuito.
 
 ## Storia

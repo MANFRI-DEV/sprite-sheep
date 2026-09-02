@@ -71,7 +71,7 @@ DEFAULT_PORT = 8765
 HOST = "127.0.0.1"
 
 APP_NAME = "Sprite Sheep"
-VERSION = "0.9.0-alpha"
+VERSION = "0.0.2-pre-alpha"
 
 # ---------------------------------------------------------------------------
 # MODALITA' DI PROVA — spenta.

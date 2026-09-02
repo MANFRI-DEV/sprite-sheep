@@ -47,9 +47,15 @@ TESTI: dict[str, dict[str, str]] = {
     "comfy.installata.assente": {
         "it": "non trovata nelle cartelle abituali",
         "en": "not found in the usual folders"},
+    # Non si nomina piu' `main.py`: chi installa **ComfyUI Desktop** non ce
+    # l'ha, e il messaggio gli chiedeva un file inesistente. Si nomina invece
+    # `models/`, che c'e' in entrambe le installazioni ed e' la cartella che a
+    # noi serve davvero.
     "comfy.installata.istruzione": {
-        "it": "Scarica ComfyUI e installala, poi indica qui la cartella che contiene main.py.",
-        "en": "Download and install ComfyUI, then point here to the folder containing main.py."},
+        "it": "Scarica ComfyUI e installala, poi indica qui la sua cartella "
+              "(quella che contiene models).",
+        "en": "Download and install ComfyUI, then point here to its folder "
+              "(the one containing models)."},
     "comfy.avviata.titolo": {
         "it": "ComfyUI in esecuzione",
         "en": "ComfyUI running"},
@@ -86,20 +92,40 @@ TESTI: dict[str, dict[str, str]] = {
     "comfy.modelli.presenti": {
         "it": "presenti",
         "en": "present"},
+    # "mancano" vuol dire "ComfyUI non li vede", non "non li hai scaricati".
+    # Detto come prima, contraddiceva il pannello Modelli che li dava presenti,
+    # e chi leggeva aveva ragione a non capire: sono due domande diverse.
     "comfy.modelli.mancano": {
-        "it": "mancano {n} file",
-        "en": "{n} files missing"},
+        "it": "{n} file non ancora visibili a ComfyUI",
+        "en": "{n} files not visible to ComfyUI yet"},
     "comfy.modelli.istruzione": {
-        "it": "Scaricali dal pannello Modelli, oppure indica una cartella che li contiene gia'.",
-        "en": "Download them from the Models panel, or point to a folder that already has them."},
+        "it": "Scaricali dal pannello Modelli, oppure indica una cartella che li contiene gia'. "
+              "Se li hai gia' scaricati, premi Ricontrolla: vengono collegati alla cartella di ComfyUI.",
+        "en": "Download them from the Models panel, or point to a folder that already has them. "
+              "If you already downloaded them, press Re-check: they get linked into ComfyUI's folder."},
+    # Terzo stato: senza il percorso di ComfyUI non si puo' guardare nelle sue
+    # cartelle, e dire "mancano" sarebbe un'affermazione non verificata.
+    "comfy.modelli.non_verificabile": {
+        "it": "non verificabile finche' ComfyUI non e' configurata",
+        "en": "cannot be checked until ComfyUI is set up"},
+    "comfy.modelli.prima_comfy": {
+        "it": "Indica prima la cartella di ComfyUI: i pesi vanno collegati li' dentro.",
+        "en": "Point to the ComfyUI folder first: the weights get linked inside it."},
     "comfy.nota_licenza": {
         "it": ("ComfyUI e' software libero GPL-3.0 di terze parti. Sprite Sheep "
                "non lo ridistribuisce: lo usi tu, installato da te."),
         "en": ("ComfyUI is third-party GPL-3.0 free software. Sprite Sheep does "
                "not redistribute it: you install and run it yourself.")},
     "comfy.err.no_main": {
-        "it": "in questa cartella non c'e' main.py di ComfyUI",
-        "en": "this folder does not contain ComfyUI's main.py"},
+        "it": "questa non sembra una cartella di ComfyUI: dentro non c'e' "
+              "models con accanto input, output o user",
+        "en": "this does not look like a ComfyUI folder: there is no models "
+              "next to input, output or user"},
+    "comfy.err.desktop_avvia": {
+        "it": "Questa e' un'installazione ComfyUI Desktop: avviala dalla sua "
+              "applicazione, poi premi Ricontrolla.",
+        "en": "This is a ComfyUI Desktop installation: start it from its own "
+              "app, then press Re-check."},
     "comfy.err.non_trovata": {
         "it": "ComfyUI non trovata: indica la cartella",
         "en": "ComfyUI not found: select the folder"},

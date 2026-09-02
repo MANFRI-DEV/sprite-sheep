@@ -32,11 +32,12 @@ NOMI_TIPICI = [
     "Desktop/ComfyUI",
 ]
 
-MODELLI_ATTESI = {
-    "diffusion_models": "minimax_h3_fl2va_pruned_fp8_scaled.safetensors",
-    "text_encoders": "qwen3vl_32b_minimax_h3_int4_convrot.safetensors",
-    "vae": "minimax_h3_video_vae_fp16.safetensors",
-}
+## La lista dei file attesi **non sta piu' qui**: si ricava dal catalogo in
+## `modelli.py`, che e' l'unico posto in cui i nomi dei pesi sono scritti.
+##
+## Era il terzo elenco parallelo degli stessi file, ed era divergiato senza che
+## nulla desse errore: conteneva tre dei quattro file di MiniMax H3 e nessuno
+## di WAN. Un utente con WAN scaricato si vedeva dire che ne mancavano tre.
 
 
 def _leggi() -> dict:
@@ -48,9 +49,45 @@ def _leggi() -> dict:
     return {}
 
 
+## Che genere di installazione e' una cartella.
+##
+## Esistono due ComfyUI, e per un po' ne abbiamo riconosciuta una sola:
+##
+## - **sorgente**: la versione portable o clonata da git. Ha `main.py` in cima,
+##   e la si puo' anche avviare.
+## - **dati**: quella installata da **ComfyUI Desktop**. La cartella che
+##   l'utente sceglie contiene `models/`, `input/`, `output/`, `user/` e un
+##   marcatore `.comfyui-desktop-*`, ma **non** `main.py`: il codice sta dentro
+##   l'applicazione Electron, altrove.
+##
+## Pretendere `main.py` rifiutava le installazioni Desktop con un messaggio che
+## chiedeva un file inesistente — "there is no such thing?", parole di un utente
+## alla prima release. Eppure di quel percorso ci serve `models/`, che c'e'
+## eccome: e' li' che si pubblicano i pesi perche' ComfyUI li veda.
+SORGENTE = "sorgente"
+DATI = "dati"
+
+## Cartelle che ComfyUI crea nella propria directory dati. `models/` e'
+## indispensabile; delle altre ne basta una, perche' una cartella `models/`
+## qualsiasi non fa di per se' un'installazione.
+COMPAGNE = ("input", "output", "user", "custom_nodes")
+
+
+def genere(p: Path) -> str | None:
+    """`SORGENTE`, `DATI`, oppure None se non e' un'installazione ComfyUI."""
+    try:
+        if (p / "main.py").is_file():
+            return SORGENTE
+        if (p / "models").is_dir() and any((p / c).is_dir() for c in COMPAGNE):
+            return DATI
+    except OSError:
+        pass                      # unita' rimovibile non pronta
+    return None
+
+
 def imposta_percorso(percorso: str) -> dict:
     p = Path(percorso)
-    if not (p / "main.py").is_file():
+    if genere(p) is None:
         return {"ok": False, "errore": t("comfy.err.no_main")}
     d = _leggi()
     d["percorso"] = str(p)
@@ -86,16 +123,13 @@ def _radici() -> list[Path]:
 def trova_installazione() -> str | None:
     """Percorso salvato, altrimenti ricerca sui nomi tipici. Mai cablato."""
     salvato = _leggi().get("percorso")
-    if salvato and (Path(salvato) / "main.py").is_file():
+    if salvato and genere(Path(salvato)) is not None:
         return salvato
     for radice in _radici():
         for nome in NOMI_TIPICI:
             c = radice / nome
-            try:
-                if (c / "main.py").is_file():
-                    return str(c)
-            except OSError:
-                continue          # unita' rimovibile non pronta
+            if genere(c) is not None:
+                return str(c)
     return None
 
 
@@ -118,11 +152,68 @@ def _classi_mancanti() -> list[str] | None:
     return [c for c in CLASSI_RICHIESTE if c not in info]
 
 
-def _modelli_mancanti(percorso: str | None) -> list[str]:
+def _attesi(model_id: str | None) -> list[tuple[str, str]]:
+    """(cartella, nome file) che ComfyUI deve vedere per il modello scelto.
+
+    Si ricavano dal catalogo invece di stare in una lista qui.
+    `MODELLI_ATTESI` era una copia scritta a mano dei file di MiniMax H3 — tre
+    dei suoi quattro, per giunta — e ignorava del tutto WAN: chi aveva scaricato
+    WAN si vedeva dire che ne mancavano tre, perche' si cercavano i file di un
+    modello che non aveva scelto.
+    """
+    import modelli
+    scheda = modelli.CATALOGO.get(model_id or "")
+    if not scheda:
+        return []
+    fuori = []
+    for f in scheda["file"]:
+        cartella = modelli.CARTELLE_COMFY.get(f["ruolo"])
+        if cartella:
+            fuori.append((cartella, Path(f["path"]).name))
+    return fuori
+
+
+def _scaricati() -> list[str]:
+    """I modelli che l'utente ha davvero scaricato, per intero."""
+    import modelli
+    fuori = []
+    for mid in modelli.CATALOGO:
+        try:
+            if modelli.stato(mid).get("installato"):
+                fuori.append(mid)
+        except Exception:
+            continue
+    return fuori
+
+
+def _modelli_mancanti(percorso: str | None) -> list[str] | None:
+    """I file che ComfyUI non vede. `None` = non si puo' ancora sapere.
+
+    Due difetti stavano insieme qui, e producevano lo stesso sintomo: il
+    pannello Modelli dava tutto scaricato e questo passo diceva "3 files
+    missing". L'utente aveva ragione, e la risposta e' che erano due domande
+    diverse — "li ho?" e "ComfyUI li vede?".
+
+    1. **Senza il percorso di ComfyUI si dichiaravano mancanti tutti i file.**
+       Ma senza percorso non si puo' guardare da nessuna parte: la risposta
+       giusta e' "non lo so ancora", non "mancano".
+    2. **La lista dei file attesi era scritta a mano**, e conteneva tre dei
+       quattro file di MiniMax H3 e nessuno di WAN. Chi usava WAN si sentiva
+       dire che ne mancavano tre, perche' si cercava un modello che non aveva
+       scelto.
+
+    Si guardano ora i modelli **che l'utente ha scaricato**: e' quella la
+    domanda che questo passo deve rispondere.
+    """
     if not percorso:
-        return list(MODELLI_ATTESI.values())
+        return None
     base = Path(percorso) / "models"
-    return [n for cart, n in MODELLI_ATTESI.items() if not (base / cart / n).is_file()]
+    mancanti = []
+    for mid in _scaricati():
+        for cartella, nome in _attesi(mid):
+            if not (base / cartella / nome).is_file():
+                mancanti.append(nome)
+    return mancanti
 
 
 def stato() -> dict:
@@ -146,8 +237,14 @@ def stato() -> dict:
             "titolo": t("comfy.avviata.titolo"),
             "esito": "ok" if acceso else ("azione" if percorso else "attesa"),
             "dettaglio": t("comfy.avviata.si") if acceso else t("comfy.avviata.no"),
-            "istruzione": None if acceso else
-                (t("comfy.avviata.premi") if percorso else t("comfy.avviata.prima")),
+            # Su un'installazione Desktop il pulsante non puo' funzionare: il
+            # codice di ComfyUI non sta nella cartella scelta. Dirgli di
+            # premerlo lo manderebbe contro un errore.
+            "istruzione": None if acceso else (
+                t("comfy.avviata.prima") if not percorso else
+                (t("comfy.err.desktop_avvia") if genere(Path(percorso)) == DATI
+                 else t("comfy.avviata.premi"))),
+            "avviabile": bool(percorso) and genere(Path(percorso)) == SORGENTE,
             "link": None,
         },
         {
@@ -160,18 +257,35 @@ def stato() -> dict:
             "istruzione": None if not classi else t("comfy.nodi.istruzione"),
             "link": None if not classi else URL_GUIDA,
         },
+        # Tre stati, non due. `None` vuol dire "non lo so ancora", ed e' un
+        # caso diverso da "mancano": senza il percorso di ComfyUI non si puo'
+        # guardare nelle sue cartelle, e dichiararli mancanti sarebbe
+        # un'affermazione che non abbiamo modo di verificare.
         {
             "id": "modelli",
             "titolo": t("comfy.modelli.titolo"),
-            "esito": "ok" if not mancanti_modelli else ("azione" if percorso else "attesa"),
-            "dettaglio": (t("comfy.modelli.presenti") if not mancanti_modelli
-                          else t("comfy.modelli.mancano", n=len(mancanti_modelli))),
-            "istruzione": None if not mancanti_modelli else t("comfy.modelli.istruzione"),
+            "esito": ("attesa" if mancanti_modelli is None
+                      else ("ok" if not mancanti_modelli else "azione")),
+            "dettaglio": (t("comfy.modelli.non_verificabile")
+                          if mancanti_modelli is None
+                          else (t("comfy.modelli.presenti") if not mancanti_modelli
+                                else t("comfy.modelli.mancano",
+                                       n=len(mancanti_modelli)))),
+            "istruzione": (t("comfy.modelli.prima_comfy")
+                           if mancanti_modelli is None
+                           else (None if not mancanti_modelli
+                                 else t("comfy.modelli.istruzione"))),
             "link": None,
         },
     ]
     return {
         "percorso": percorso,
+        # Che genere di installazione e', e se il pulsante "Avvia" ha senso.
+        # Su ComfyUI Desktop non ce l'ha: il codice non sta nella cartella
+        # scelta, e l'interfaccia deve spegnere il pulsante invece di offrire
+        # un'azione che fallirebbe.
+        "genere": genere(Path(percorso)) if percorso else None,
+        "avviabile": bool(percorso) and genere(Path(percorso)) == SORGENTE,
         "in_esecuzione": acceso,
         "pronto": all(p["esito"] == "ok" for p in passi),
         "passi": passi,
@@ -215,6 +329,12 @@ def avvia() -> dict:
         return {"ok": False, "errore": t("comfy.err.non_trovata")}
 
     base = Path(percorso)
+    # Un'installazione Desktop si avvia dalla sua applicazione, non da qui: il
+    # codice non sta in questa cartella. Si dice, invece di provare a lanciare
+    # un `main.py` che non c'e' e riportare un errore di file mancante.
+    if genere(base) == DATI:
+        return {"ok": False, "errore": t("comfy.err.desktop_avvia")}
+
     py = _interprete(base)
     if py is None:
         return {"ok": False,

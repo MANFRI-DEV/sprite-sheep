@@ -11,8 +11,9 @@ Cosa finisce nel pacchetto:
     SpriteSheep.exe          l'applicazione
     sidecar/                 il servizio Python che fa l'inferenza
     python/                  runtime incorporato, cosi' non si installa nulla
-    LEGGIMI.txt              istruzioni
-    LICENZE-TERZE-PARTI.txt  licenze delle dipendenze
+    README.txt               istruzioni
+    requirements.txt         elenco librerie
+    THIRD-PARTY-LICENCES.txt licenze delle dipendenze
 
 I pesi dei modelli **non** ci sono: si scaricano dall'applicazione, dopo aver
 accettato la licenza di ciascuno.
@@ -28,7 +29,7 @@ RADICE = Path(__file__).resolve().parent
 GODOT = r"C:\GODOT\Godot_v4.6.1-stable_win64_console.exe"
 PROGETTO = RADICE / "godot"
 DIST = RADICE / "dist"
-VERSIONE = "0.0.1-pre-alpha"
+VERSIONE = "0.0.2-pre-alpha"
 ZIP = RADICE / ("SpriteSheep-%s-win64.zip" % VERSIONE)
 ESEGUIBILE = "SpriteSheep.exe"
 
@@ -90,9 +91,40 @@ def main() -> None:
     if dst.exists():
         shutil.rmtree(dst)
     shutil.copytree(RADICE / "sidecar", dst, ignore=SALTA_SIDECAR)
-    for nome, come in (("dist_README.txt", "LEGGIMI.txt"),):
+
+    DOCUMENTI = [
+        ("dist_README.txt", "README.txt"),
+        ("dist_requirements.txt", "requirements.txt"),
+    ]
+    ## Gli unici `.txt` che il pacchetto deve contenere. Tutti gli altri in
+    ## cima a `dist/` sono avanzi di versioni precedenti e vanno buttati:
+    ## `requisiti.txt` della 0.9 e' sopravvissuto a due build, e' finito nel
+    ## pacchetto senza che nessuno lo copiasse e annunciava la versione
+    ## sbagliata.
+    ##
+    ## L'elenco serve proprio a non cancellare troppo: il primo tentativo
+    ## buttava *tutti* i `.txt`, e portava via anche le licenze appena
+    ## generate da `build_licenze.py` — che non le riscrive questa build, e
+    ## che i termini delle dipendenze impongono di allegare.
+    ATTESI = {c for _, c in DOCUMENTI} | {"THIRD-PARTY-LICENCES.txt"}
+    for vecchio in DIST.glob("*.txt"):
+        if vecchio.name not in ATTESI:
+            vecchio.unlink()
+            print("   buttato avanzo: %s" % vecchio.name)
+
+    for nome, come in DOCUMENTI:
         shutil.copy2(RADICE / nome, DIST / come)
-    print("   sidecar copiato, LEGGIMI.txt aggiornato")
+
+    # Le licenze le scrive `build_licenze.py` leggendo il runtime davvero
+    # distribuito: se non c'e' ancora, si dice, invece di spedire un pacchetto
+    # a cui manca un documento che le licenze stesse impongono di includere.
+    licenze = DIST / "THIRD-PARTY-LICENCES.txt"
+    if not licenze.exists():
+        raise SystemExit(
+            "manca %s: lancia prima `python build_licenze.py`.\n"
+            "Spedire il pacchetto senza quel file violerebbe i termini delle "
+            "librerie incluse." % licenze.name)
+    print("   sidecar copiato, %s" % ", ".join(c for _, c in DOCUMENTI))
 
     # Verifica che nel pacchetto non sia rimasto niente della vecchia doppia
     # edizione: un `edizione.cfg` dimenticato riaccenderebbe la filigrana.

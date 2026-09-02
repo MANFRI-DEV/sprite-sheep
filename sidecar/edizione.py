@@ -17,7 +17,7 @@ file locale che chiunque poteva cancellare, quindi non proteggeva nulla e
 intralciava le prove.
 """
 
-VERSIONE = "0.0.1-pre-alpha"
+VERSIONE = "0.0.2-pre-alpha"
 NOME_EDIZIONE = "Pre-alpha %s" % VERSIONE
 
 ## Nessuna filigrana. La costante resta perche' `genera.py` la interroga, e

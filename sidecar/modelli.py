@@ -380,7 +380,7 @@ def _spiega(e: Exception) -> str:
     """Messaggio che dice anche cosa fare, non solo cosa e' rotto."""
     if isinstance(e, ModuleNotFoundError):
         return (f"manca il modulo Python '{e.name}'. "
-                f"Installalo con:  pip install -r requisiti.txt")
+                f"Installalo con:  pip install -r requirements.txt")
     return f"{type(e).__name__}: {e}"
 
 

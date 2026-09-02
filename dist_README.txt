@@ -1,90 +1,92 @@
-SPRITE SHEEP 0.0.1-pre-alpha
+SPRITE SHEEP 0.0.2-pre-alpha
 ============================
 
-Da uno sprite e un prompt genera uno sprite sheet animato e una GIF.
+From one sprite and a prompt, generates an animated sprite sheet and a GIF.
 
-Questa build NON contiene dipendenze ne' modelli: si installano una volta sola,
-seguendo i tre passi qui sotto. Il programma controlla da solo cosa manca e lo
-dice nella finestra Impostazioni.
+This build contains NO dependencies and NO model weights: you install those
+once, following the three steps below. The program checks by itself what is
+missing and says so in the Settings window.
 
-
-COSA C'E' NEL PACCHETTO
------------------------
-  SpriteSheep.exe    l'applicazione
-  sidecar/           il motore Python (codice sorgente, leggibile)
-  LEGGIMI.txt        questo file
-
-Tieni la cartella sidecar/ accanto all'eseguibile: l'applicazione la cerca li'.
+This is a PRE-ALPHA. It works, but it has rough edges, and formats may change
+without notice.
 
 
-COSA DEVI INSTALLARE
---------------------
-
-1) PYTHON 3.10 o superiore
-   https://www.python.org/downloads/windows/
-   Durante l'installazione spunta "Add python.exe to PATH".
-
-   Poi, da un prompt dei comandi:
-       pip install pillow numpy scipy huggingface_hub
-
-   Sprite Sheep NON richiede PyTorch: il calcolo sulla GPU lo fa ComfyUI, che
-   ha il suo ambiente separato.
-
-2) COMFYUI
-   https://github.com/comfyanonymous/ComfyUI/releases/latest
-   Installala dove preferisci. Sprite Sheep la cerca da sola nelle cartelle
-   piu' comuni; se non la trova, gliela indichi tu da Impostazioni.
-
-   Serve una versione recente: i nodi usati (MiniMaxH3ImageToVideo,
-   Wan22ImageToVideoLatent, ModelSamplingSD3) fanno parte del core di ComfyUI,
-   quindi non devi installare alcun custom node.
-
-3) UN MODELLO, a scelta
-   Dal pannello Modelli hai due strade:
-
-   - "Scarica": prende i pesi da HuggingFace. Prima ti mostra la licenza e ti
-     chiede di accettarla.
-   - "Seleziona cartella...": se i pesi ce li hai gia' (per esempio dentro
-     models/ di ComfyUI) li collega senza copiarli e senza riscaricare nulla.
-
-   WAN 2.2 TI2V 5B   16,9 GB   Apache 2.0, nessun vincolo territoriale.
-                               Consigliato: sta comodo in 8 GB di VRAM,
-                               circa 3 minuti e mezzo per 2 secondi di
-                               animazione su una RTX 3050.
-
-   MiniMax H3        38,9 GB   Qualita' piu' alta e piu' stabile, ma lento:
-                               circa 10 minuti per gli stessi 2 secondi.
-                               ATTENZIONE ALLA LICENZA: la MiniMax H3 Community
-                               License esclude Unione Europea, Regno Unito,
-                               Corea del Sud e Stati Uniti, e la clausola cita
-                               anche gli output prodotti. Leggila prima di
-                               accettarla; il programma te la mostra per intero.
-
-
-REQUISITI HARDWARE
-------------------
-  GPU NVIDIA con almeno 8 GB di VRAM e driver CUDA.
-  Senza GPU l'applicazione parte e te lo dice, ma generare e' impraticabile.
-  Spazio su disco: 17 GB per WAN, 39 GB per H3.
-
-
-EDIZIONE FREE
--------------
-Ogni frame porta una filigrana: una lettera per frame, che scorrendo compone
-"CREATED-WITH-SPRITESHEEP!". Nessun limite al numero di generazioni.
-
-
-LINGUE
-------
-Italiano e inglese, dal selettore in alto a destra. Alla prima apertura segue
-la lingua di Windows.
-
-
-LICENZE DI TERZE PARTI
+WHAT IS IN THE PACKAGE
 ----------------------
-ComfyUI e' software libero GPL-3.0 di terze parti. Sprite Sheep non lo
-ridistribuisce e non lo incorpora: lo installi tu, e i due programmi si parlano
-via HTTP su localhost.
+  SpriteSheep.exe    the application
+  sidecar/           the Python engine (source code, readable)
+  python/            embedded Python runtime, so you install nothing
+  README.txt         this file
+  requirements.txt   library list, for running the sidecar with your own Python
+  THIRD-PARTY-LICENCES.txt
 
-I pesi dei modelli non sono inclusi e restano soggetti alle licenze dei
-rispettivi autori, che il programma ti mostra prima del download.
+Keep the sidecar/ folder next to the executable: the application looks for it
+there.
+
+
+WHAT YOU NEED TO INSTALL
+------------------------
+
+1) COMFYUI
+   https://github.com/comfyanonymous/ComfyUI/releases/latest
+   Install it wherever you like. Sprite Sheep looks for it in the usual
+   places on its own; if it cannot find it, you point it there from Settings.
+
+   A recent version is required. The nodes used — MiniMaxH3ImageToVideo,
+   Wan22ImageToVideoLatent, ModelSamplingSD3 — are part of the ComfyUI core,
+   so you do not need to install any custom node.
+
+   Python is NOT required separately: this build carries its own in python\.
+
+2) ONE MODEL, your choice
+   From the Models panel you have two ways:
+
+   - "Download": fetches the weights from HuggingFace. It shows you the
+     licence first and asks you to accept it.
+   - "Select folder...": if you already have the weights — inside ComfyUI's
+     models/ folder, for instance — it links them without copying and without
+     downloading anything again.
+
+   MiniMax H3        38.9 GB   The one that works. High quality and steady,
+                               but heavy and slow: about ten minutes for two
+                               seconds of animation on an RTX 3050.
+                               MIND THE LICENCE. The MiniMax H3 Community
+                               License excludes the European Union, the United
+                               Kingdom, South Korea and the United States, and
+                               the clause covers the outputs you produce as
+                               well. Read it before accepting; the program
+                               shows it to you in full.
+
+   WAN 2.2 TI2V 5B   16.9 GB   Apache 2.0, no territorial restrictions, and
+                               far lighter. IN PROGRESS, not reliable yet:
+                               the VAE decode thrashes under 8 GB of VRAM and
+                               does not finish. You can select it and it will
+                               download, but expect generation to stall.
+                               The Models panel marks it as such.
+
+
+HARDWARE
+--------
+  An NVIDIA GPU with at least 8 GB of VRAM and CUDA drivers.
+  Without a GPU the application starts and tells you so, but generating is
+  impractical.
+  Disk space: 39 GB for H3, 17 GB for WAN.
+
+
+LANGUAGES
+---------
+Italian and English, from the selector at the top right. On first run it
+follows the Windows language.
+
+
+THIRD-PARTY LICENCES
+--------------------
+ComfyUI is third-party free software under GPL-3.0. Sprite Sheep neither
+redistributes nor embeds it: you install it yourself, and the two programs
+talk to each other over HTTP on localhost.
+
+The model weights are not included and remain subject to the licences of their
+respective authors, which the program shows you before downloading.
+
+The licences of the libraries bundled with this package are listed in
+THIRD-PARTY-LICENCES.txt.
