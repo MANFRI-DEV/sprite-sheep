@@ -154,7 +154,7 @@ def cerca_in_cartella(model_id: str, cartella: str) -> dict:
             errori.append("%s: %s" % (nome, e))
 
     if collegati:
-        _pubblica_in_comfyui(model_id)
+        pubblica_in_comfyui(model_id)
 
     mancanti = [n for n in attesi if n not in trovati]
     return {
@@ -273,7 +273,7 @@ CARTELLE_COMFY = {
 }
 
 
-def _pubblica_in_comfyui(model_id: str) -> list[str]:
+def pubblica_in_comfyui(model_id: str) -> dict:
     """Rende i pesi visibili a ComfyUI, che li carica **per nome** dalle
     proprie cartelle.
 
@@ -285,13 +285,18 @@ def _pubblica_in_comfyui(model_id: str) -> list[str]:
 
     Si usano hardlink: sullo stesso volume non costano un byte, e i 38,9 GB di
     H3 restano contati una volta sola. Su volumi diversi si ricade sulla copia.
+
+    **Gli errori si restituiscono, non si ingoiano.** Prima un collegamento
+    fallito spariva in un `except OSError: pass`, e l'utente restava davanti a
+    "n file non ancora visibili a ComfyUI" per sempre, senza sapere che il
+    tentativo c'era stato ne' perche' fosse andato male.
     """
     import comfyui_setup
     base = comfyui_setup.trova_installazione()
     if not base:
-        return []                       # ComfyUI non ancora configurata
+        return {"fatti": [], "errori": []}   # ComfyUI non ancora configurata
 
-    fatti = []
+    fatti, errori = [], []
     for f in CATALOGO[model_id]["file"]:
         sorgente = _percorso_locale(model_id, f)
         if not sorgente.exists():
@@ -305,9 +310,10 @@ def _pubblica_in_comfyui(model_id: str) -> list[str]:
         try:
             _porta_nel_progetto(sorgente, dst)
             fatti.append(sorgente.name)
-        except OSError:
-            pass                        # non deve far fallire il download
-    return fatti
+        except OSError as e:
+            # Non deve far fallire il download: si annota e si prosegue.
+            errori.append("%s: %s" % (sorgente.name, e))
+    return {"fatti": fatti, "errori": errori}
 
 
 def _porta_nel_progetto(scaricato: Path, locale: Path) -> None:
@@ -425,7 +431,7 @@ def _scarica(model_id: str) -> None:
 
     # Anche parziale: quello che c'e' va comunque reso visibile a ComfyUI,
     # cosi' un download ripreso non lascia meta' pesi invisibili.
-    _pubblica_in_comfyui(model_id)
+    pubblica_in_comfyui(model_id)
 
     falliti = [n for n, err in esiti.items() if err]
     with _lock:

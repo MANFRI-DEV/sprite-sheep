@@ -105,6 +105,13 @@ TESTI: dict[str, dict[str, str]] = {
               "If you already downloaded them, press Re-check: they get linked into ComfyUI's folder."},
     # Terzo stato: senza il percorso di ComfyUI non si puo' guardare nelle sue
     # cartelle, e dire "mancano" sarebbe un'affermazione non verificata.
+    # Il collegamento e' stato tentato ed e' fallito: senza dirlo, "non ancora
+    # visibili" sembra un controllo che non funziona.
+    "comfy.modelli.link_fallito": {
+        "it": ("Non sono riuscito a collegarli nella cartella di ComfyUI: {dettaglio}. "
+               "Controlla che ci sia spazio sul disco e che la cartella sia scrivibile."),
+        "en": ("Could not link them into the ComfyUI folder: {dettaglio}. "
+               "Check there is free disk space and that the folder is writable.")},
     "comfy.modelli.non_verificabile": {
         "it": "non verificabile finche' ComfyUI non e' configurata",
         "en": "cannot be checked until ComfyUI is set up"},

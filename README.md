@@ -3,7 +3,7 @@
 From one sprite and a prompt, generates an **animated sprite sheet** and a GIF,
 locally, using video diffusion models.
 
-> **Pre-alpha 0.0.2.** It works, but it has rough edges. Interfaces and formats
+> **Pre-alpha 0.0.3.** It works, but it has rough edges. Interfaces and formats
 > may change without notice.
 
 **[Download the build on itch.io](https://shaddafare.itch.io/sprite-sheep)** —

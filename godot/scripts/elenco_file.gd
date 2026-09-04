@@ -174,7 +174,11 @@ static func _riga_file(f: Dictionary) -> Control:
 	riga.add_child(et_stato)
 	box.add_child(riga)
 
-	var errore := str(f.get("errore", ""))
+	# Il sidecar manda `errore: null` quando il file sta bene, e il default di
+	# `get()` non scatta: la chiave c'e', vale null. `str(null)` in GDScript da'
+	# la stringa "<null>", che finiva in rosso sotto ogni file a posto.
+	var grezzo: Variant = f.get("errore")
+	var errore := "" if grezzo == null else str(grezzo)
 	if errore != "":
 		var e := Label.new()
 		e.text = "     " + errore

@@ -42,7 +42,48 @@ def _post(rotta: str, corpo: dict) -> dict:
     req = urllib.request.Request(
         COMFY + rotta, data=json.dumps(corpo).encode(),
         headers={"Content-Type": "application/json"})
-    return json.load(urllib.request.urlopen(req, timeout=60))
+    try:
+        return json.load(urllib.request.urlopen(req, timeout=60))
+    except urllib.error.HTTPError as e:
+        # Quando ComfyUI rifiuta un grafo risponde 400 **con il motivo nel
+        # corpo**, e urllib lo tiene nell'eccezione senza che nessuno lo legga:
+        # saliva solo "HTTP Error 400: Bad Request", che a un utente non dice
+        # niente e a noi nemmeno. Il motivo tipico e' che il file dei pesi non
+        # sta nella cartella di ComfyUI, quindi il nome non e' fra i valori
+        # ammessi dal nodo e la validazione lo scarta.
+        raise RuntimeError(t("gen.grafo_rifiutato",
+                             dettaglio=_dettaglio_errore(e))) from None
+
+
+def _dettaglio_errore(e: urllib.error.HTTPError) -> str:
+    """Il perche' del rifiuto, estratto dal corpo della risposta di ComfyUI.
+
+    Il corpo ha due parti utili: `error` con il messaggio generale e
+    `node_errors` con un errore per nodo. Quello che serve davvero e' il
+    `details` dei nodi ("unet_name: '...' not in []"): dice quale file non
+    viene visto e da quale nodo.
+    """
+    try:
+        corpo = json.loads(e.read().decode("utf-8", "replace"))
+    except Exception:
+        return "HTTP %s" % e.code
+
+    pezzi = []
+    generale = corpo.get("error") or {}
+    if isinstance(generale, dict):
+        for chiave in ("message", "details"):
+            v = str(generale.get(chiave) or "").strip()
+            if v and v not in pezzi:
+                pezzi.append(v)
+
+    for nodo, info in (corpo.get("node_errors") or {}).items():
+        classe = (info or {}).get("class_type") or nodo
+        for err in (info or {}).get("errors") or []:
+            v = str(err.get("details") or err.get("message") or "").strip()
+            if v:
+                pezzi.append("%s: %s" % (classe, v))
+
+    return " — ".join(pezzi) if pezzi else "HTTP %s" % e.code
 
 
 def _get(rotta: str, timeout: int = 60) -> dict:

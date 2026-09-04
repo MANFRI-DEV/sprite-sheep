@@ -186,6 +186,36 @@ def _scaricati() -> list[str]:
     return fuori
 
 
+def _ripubblica(percorso: str | None) -> list[str]:
+    """Ricollega nella cartella di ComfyUI i pesi gia' scaricati.
+
+    Il collegamento avveniva in due soli momenti: alla fine di un download e
+    quando si indicava una cartella con "Seleziona cartella...". Chi scaricava
+    i pesi **prima** di configurare ComfyUI non passava per nessuno dei due:
+    al momento del download `trova_installazione()` dava None e la pubblicazione
+    usciva subito senza fare nulla.
+
+    Poi l'utente indicava la cartella e premeva Ricontrolla — che si limitava a
+    guardare — e restava per sempre davanti a "n file non ancora visibili a
+    ComfyUI", mentre l'istruzione sotto prometteva l'esatto contrario:
+    "premi Ricontrolla: vengono collegati alla cartella di ComfyUI".
+
+    Ora il controllo prova prima a collegare. E' anche la causa dell'HTTP 400
+    in generazione: senza il file nella cartella di ComfyUI il suo nome non e'
+    fra i valori ammessi dal nodo, e il grafo viene rifiutato in validazione.
+    """
+    if not percorso:
+        return []
+    import modelli
+    errori = []
+    for mid in _scaricati():
+        try:
+            errori += modelli.pubblica_in_comfyui(mid).get("errori", [])
+        except Exception as e:
+            errori.append("%s: %s" % (mid, e))
+    return errori
+
+
 def _modelli_mancanti(percorso: str | None) -> list[str] | None:
     """I file che ComfyUI non vede. `None` = non si puo' ancora sapere.
 
@@ -221,6 +251,8 @@ def stato() -> dict:
     percorso = trova_installazione()
     acceso = _in_ascolto()
     classi = _classi_mancanti() if acceso else None
+    # Prima si collega, poi si guarda: e' quello che l'istruzione promette.
+    errori_link = _ripubblica(percorso)
     mancanti_modelli = _modelli_mancanti(percorso)
 
     passi = [
@@ -271,10 +303,16 @@ def stato() -> dict:
                           else (t("comfy.modelli.presenti") if not mancanti_modelli
                                 else t("comfy.modelli.mancano",
                                        n=len(mancanti_modelli)))),
+            # Se il collegamento e' stato tentato ed e' fallito, il motivo va
+            # detto qui: e' l'unico posto in cui l'utente lo puo' leggere, e
+            # senza di esso "non ancora visibili" sembra un controllo rotto.
             "istruzione": (t("comfy.modelli.prima_comfy")
                            if mancanti_modelli is None
                            else (None if not mancanti_modelli
-                                 else t("comfy.modelli.istruzione"))),
+                                 else (t("comfy.modelli.link_fallito",
+                                         dettaglio=errori_link[0])
+                                       if errori_link
+                                       else t("comfy.modelli.istruzione")))),
             "link": None,
         },
     ]

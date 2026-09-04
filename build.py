@@ -29,7 +29,7 @@ RADICE = Path(__file__).resolve().parent
 GODOT = r"C:\GODOT\Godot_v4.6.1-stable_win64_console.exe"
 PROGETTO = RADICE / "godot"
 DIST = RADICE / "dist"
-VERSIONE = "0.0.2-pre-alpha"
+VERSIONE = "0.0.3-pre-alpha"
 ZIP = RADICE / ("SpriteSheep-%s-win64.zip" % VERSIONE)
 ESEGUIBILE = "SpriteSheep.exe"
 
