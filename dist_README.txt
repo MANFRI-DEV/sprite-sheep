@@ -1,4 +1,4 @@
-SPRITE SHEEP 0.0.3-pre-alpha
+SPRITE SHEEP 0.0.4-pre-alpha
 ============================
 
 From one sprite and a prompt, generates an animated sprite sheet and a GIF.

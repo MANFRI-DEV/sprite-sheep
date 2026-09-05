@@ -24,7 +24,7 @@ var _trascorso := 0.0
 
 func _ready() -> void:
 	_titolo.text = "SPRITE SHEEP"
-	_edizione.text = "PRE-ALPHA 0.0.3"
+	_edizione.text = "PRE-ALPHA 0.0.4"
 	_stato.text = tr("avvio del motore...")
 	_pecora.modulate.a = 0.0
 	_anima_entrata()

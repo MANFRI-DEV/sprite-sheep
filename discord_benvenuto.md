@@ -15,7 +15,7 @@ You give the program **one sprite** and **a prompt built from fields** — subje
 
 ⚠️ **Read the licence before downloading.** The *MiniMax H3 Community License* excludes the **European Union, the United Kingdom, South Korea and the United States**, and the clause covers the outputs you produce as well. The program shows it to you in full and blocks the download until you accept it. WAN 2.2 is Apache 2.0, with no territorial restrictions.
 
-## Status: pre-alpha 0.0.3
+## Status: pre-alpha 0.0.4
 A single edition, no watermark and no generation limits. This is very young
 software and we say so openly: it works, but it has rough edges. If you find a bug, post in **#reports** and attach what the *Copy diagnostics* button gives you: it contains GPU, version and paths, and that is what makes a report answerable.
 

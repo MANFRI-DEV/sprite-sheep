@@ -244,6 +244,14 @@ TESTI: dict[str, dict[str, str]] = {
     "gen.lunghezza_wan": {
         "it": "WAN richiede lunghezze 4n+1: ricevuto {n}",
         "en": "WAN requires 4n+1 lengths: got {n}"},
+    # Il ruolo c'e' ma ComfyUI non ha nessun file che possa ricoprirlo. Si
+    # elenca cosa ha davvero: senza, l'utente non sa se il problema e' il nome,
+    # la cartella o il download.
+    "gen.pesi_assenti": {
+        "it": ("ComfyUI non ha nessun file adatto per {campo}. Atteso "
+               "'{atteso}'. Disponibili: {elenco}"),
+        "en": ("ComfyUI has no suitable file for {campo}. Expected "
+               "'{atteso}'. Available: {elenco}")},
     "gen.cartella_ignota": {
         "it": "cartella di ComfyUI sconosciuta: indicala nella procedura guidata",
         "en": "ComfyUI folder unknown: set it in the wizard"},
