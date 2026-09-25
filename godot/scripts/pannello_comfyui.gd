@@ -97,7 +97,7 @@ func _disegna(s: Dictionary) -> void:
 		var det := Label.new()
 		det.text = str(p.get("dettaglio", ""))
 		det.add_theme_font_size_override("font_size", 11)
-		det.add_theme_color_override("font_color", Color(0.55, 0.6, 0.68))
+		det.add_theme_color_override("font_color", Color(0.776, 0.8, 0.847))
 		det.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		col.add_child(det)
 
@@ -133,10 +133,10 @@ func _disegna(s: Dictionary) -> void:
 	_btn_avvia.text = tr("ComfyUI in esecuzione") if acceso else tr("Avvia ComfyUI")
 
 	if s.get("pronto", false):
-		_riassunto.text = "[color=#5cc76e]%s[/color]\n[color=#7d8695]%s[/color]" % [
+		_riassunto.text = "[color=#5cc76e]%s[/color]\n[color=#c6ccd8]%s[/color]" % [
 			tr("Tutto pronto: puoi generare."), str(s.get("nota_licenza", ""))]
 	else:
-		_riassunto.text = "[color=#7d8695]%s[/color]" % str(s.get("nota_licenza", ""))
+		_riassunto.text = "[color=#c6ccd8]%s[/color]" % str(s.get("nota_licenza", ""))
 
 
 ## Scritta di attesa. ComfyUI viene lanciata senza console (vedi
@@ -147,7 +147,7 @@ func _anima_attesa() -> void:
 		return
 	_secondi += 1
 	var punti := ".".repeat(1 + (_secondi % 3))
-	_riassunto.text = "[color=#e0a040][b]%s%s[/b][/color]\n[color=#7d8695]%s[/color]" % [
+	_riassunto.text = "[color=#e0a040][b]%s%s[/b][/color]\n[color=#c6ccd8]%s[/color]" % [
 		tr("COMFYUI IN CARICAMENTO"), punti,
 		tr("%d s — di solito ci vuole circa un minuto") % _secondi]
 	_btn_avvia.text = tr("Caricamento...")

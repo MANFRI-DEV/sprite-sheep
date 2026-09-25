@@ -49,7 +49,7 @@ stretch_mode = 5
 [node name="Titolo" type="Label" parent="Centro/Colonna"]
 unique_name_in_owner = true
 layout_mode = 2
-theme_override_colors/font_color = Color(0.886, 0.902, 0.933, 1)
+theme_override_colors/font_color = Color(1, 1, 1, 1)
 theme_override_font_sizes/font_size = 44
 text = "SPRITE SHEEP"
 horizontal_alignment = 1
@@ -77,7 +77,49 @@ layout_mode = 2
 [node name="Stato" type="Label" parent="Centro/Colonna"]
 unique_name_in_owner = true
 layout_mode = 2
-theme_override_colors/font_color = Color(0.498, 0.529, 0.596, 1)
+theme_override_colors/font_color = Color(0.776, 0.8, 0.847, 1)
 theme_override_font_sizes/font_size = 13
 text = "avvio del motore..."
 horizontal_alignment = 1
+
+[node name="Spazio2" type="Control" parent="Centro/Colonna"]
+custom_minimum_size = Vector2(0, 10)
+layout_mode = 2
+
+[node name="AvviaButton" type="Button" parent="Centro/Colonna"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(260, 46)
+layout_mode = 2
+size_flags_horizontal = 4
+disabled = true
+text = "Avvia"
+
+[node name="Spazio3" type="Control" parent="Centro/Colonna"]
+custom_minimum_size = Vector2(0, 4)
+layout_mode = 2
+
+[node name="CollegamentiRiga" type="HBoxContainer" parent="Centro/Colonna"]
+unique_name_in_owner = true
+layout_mode = 2
+alignment = 1
+theme_override_constants/separation = 8
+
+[node name="AggiornamentiButton" type="Button" parent="Centro/Colonna/CollegamentiRiga"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Check for update"
+
+[node name="DiscordButton" type="Button" parent="Centro/Colonna/CollegamentiRiga"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Discord"
+
+[node name="InstagramButton" type="Button" parent="Centro/Colonna/CollegamentiRiga"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Instagram"
+
+[node name="KofiButton" type="Button" parent="Centro/Colonna/CollegamentiRiga"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Ko-fi"

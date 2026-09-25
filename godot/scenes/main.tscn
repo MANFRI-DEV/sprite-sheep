@@ -52,7 +52,7 @@ theme_override_constants/separation = 10
 unique_name_in_owner = true
 layout_mode = 2
 
-[node name="Riga" type="HBoxContainer" parent="Margine/Colonna/Barra"]
+[node name="Riga" type="HFlowContainer" parent="Margine/Colonna/Barra"]
 layout_mode = 2
 theme_override_constants/separation = 18
 
@@ -62,7 +62,7 @@ size_flags_vertical = 4
 text = "Sprite Sheep"
 theme_override_font_sizes/font_size = 18
 
-[node name="SpieRiga" type="HBoxContainer" parent="Margine/Colonna/Barra/Riga"]
+[node name="SpieRiga" type="HFlowContainer" parent="Margine/Colonna/Barra/Riga"]
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_vertical = 4
@@ -71,6 +71,32 @@ theme_override_constants/separation = 16
 [node name="Spazio" type="Control" parent="Margine/Colonna/Barra/Riga"]
 layout_mode = 2
 size_flags_horizontal = 3
+
+[node name="CollegamentiRiga" type="HBoxContainer" parent="Margine/Colonna/Barra/Riga"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_vertical = 4
+theme_override_constants/separation = 6
+
+[node name="AggiornamentiButton" type="Button" parent="Margine/Colonna/Barra/Riga/CollegamentiRiga"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Check for update"
+
+[node name="DiscordButton" type="Button" parent="Margine/Colonna/Barra/Riga/CollegamentiRiga"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Discord"
+
+[node name="InstagramButton" type="Button" parent="Margine/Colonna/Barra/Riga/CollegamentiRiga"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Instagram"
+
+[node name="KofiButton" type="Button" parent="Margine/Colonna/Barra/Riga/CollegamentiRiga"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Ko-fi"
 
 [node name="LinguaOption" type="OptionButton" parent="Margine/Colonna/Barra/Riga"]
 unique_name_in_owner = true
@@ -84,7 +110,7 @@ layout_mode = 2
 size_flags_vertical = 4
 text = "Impostazioni"
 
-[node name="Corpo" type="HBoxContainer" parent="Margine/Colonna"]
+[node name="Corpo" type="BoxContainer" parent="Margine/Colonna"]
 layout_mode = 2
 size_flags_vertical = 3
 theme_override_constants/separation = 12

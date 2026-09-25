@@ -1,7 +1,6 @@
-[gd_scene load_steps=3 format=3 uid="uid://c6spritesheep0prompt"]
+[gd_scene load_steps=2 format=3 uid="uid://c6spritesheep0prompt"]
 
 [ext_resource type="Script" path="res://scripts/pannello_prompt.gd" id="1_prompt"]
-[ext_resource type="Script" path="res://scripts/grafo_prompt.gd" id="2_grafo"]
 
 [node name="PannelloPrompt" type="PanelContainer"]
 anchors_preset = 15
@@ -22,38 +21,35 @@ theme_override_constants/separation = 8
 
 [node name="Titolo" type="Label" parent="Margine/Colonna"]
 layout_mode = 2
-text = "Prompt"
+text = "2. Prompt"
 theme_override_font_sizes/font_size = 16
 
 [node name="Aiuto" type="Label" parent="Margine/Colonna"]
 layout_mode = 2
-text = "Ogni blocco e' una parte del prompt. Stacca un filo per escluderlo."
+text = "Il wizard fa una domanda per volta e compone il prompt."
 theme_override_font_sizes/font_size = 11
+autowrap_mode = 3
 
-[node name="Grafo" type="GraphEdit" parent="Margine/Colonna"]
+[node name="WizardButton" type="Button" parent="Margine/Colonna"]
 unique_name_in_owner = true
 layout_mode = 2
-size_flags_vertical = 3
-custom_minimum_size = Vector2(0, 380)
-script = ExtResource("2_grafo")
+custom_minimum_size = Vector2(0, 38)
+text = "Wizard prompt creation"
 
 [node name="NotaModello" type="Label" parent="Margine/Colonna"]
 unique_name_in_owner = true
 layout_mode = 2
 theme_override_font_sizes/font_size = 11
-
-[node name="ComponiButton" type="Button" parent="Margine/Colonna"]
-unique_name_in_owner = true
-layout_mode = 2
-text = "Componi"
+autowrap_mode = 3
 
 [node name="Sep" type="HSeparator" parent="Margine/Colonna"]
 layout_mode = 2
 
 [node name="TestoEdit" type="TextEdit" parent="Margine/Colonna"]
 unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 200)
 layout_mode = 2
-custom_minimum_size = Vector2(0, 120)
+size_flags_vertical = 3
 wrap_mode = 1
 placeholder_text = "Il testo composto compare qui. Modificandolo, comandi tu."
 
@@ -63,15 +59,15 @@ theme_override_constants/separation = 8
 
 [node name="Spia" type="ColorRect" parent="Margine/Colonna/Semaforo"]
 unique_name_in_owner = true
-layout_mode = 2
 custom_minimum_size = Vector2(14, 14)
+layout_mode = 2
 size_flags_vertical = 4
 color = Color(0.85, 0.3, 0.3, 1)
 
 [node name="EsitoLabel" type="RichTextLabel" parent="Margine/Colonna/Semaforo"]
 unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 46)
 layout_mode = 2
 size_flags_horizontal = 3
-custom_minimum_size = Vector2(0, 46)
 bbcode_enabled = true
 fit_content = true

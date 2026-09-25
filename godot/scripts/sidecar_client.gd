@@ -16,10 +16,27 @@ const HOST := "127.0.0.1"
 var _pid := -1
 var _http: HTTPRequest
 
+## Segreto condiviso col sidecar, nuovo a ogni avvio.
+##
+## Il sidecar ascolta su localhost, e localhost non e' "solo noi": qualunque
+## pagina aperta nel browser puo' mandargli una POST. Senza questo, un sito
+## poteva accettare una licenza a nome dell'utente e avviare un download da
+## 40 GB. Il token passa nell'**ambiente** del processo figlio, non nella
+## riga di comando: gli argomenti di un processo li legge chiunque sulla
+## stessa macchina, l'ambiente no.
+var _token := ""
+
 
 func _ready() -> void:
 	_http = HTTPRequest.new()
 	add_child(_http)
+	_token = Crypto.new().generate_random_bytes(24).hex_encode()
+
+
+func _intestazioni(extra: Array = []) -> PackedStringArray:
+	var h := PackedStringArray(["X-SpriteSheep-Token: " + _token])
+	h.append_array(extra)
+	return h
 
 
 ## Lancia il sidecar. Se risponde gia' qualcuno sulla porta, non ne avvia un altro.
@@ -34,6 +51,9 @@ func avvia() -> void:
 		sidecar_errore.emit(TrovaPython.spiegazione())
 		return
 
+	# Il figlio eredita l'ambiente del padre al momento della creazione:
+	# impostarlo qui basta, e non lo vede nessun altro processo.
+	OS.set_environment("SPRITESHEEP_TOKEN", _token)
 	_pid = OS.create_process(python, [script_path, "--port", str(PORTA)], false)
 	if _pid <= 0:
 		sidecar_errore.emit("impossibile avviare il processo sidecar")
@@ -75,6 +95,16 @@ func _attendi_pronto(tentativi := 20) -> void:
 		await get_tree().create_timer(0.5).timeout
 		var info := await get_json("/health")
 		if not info.is_empty() and info.get("ok", false):
+			# Risponde, ma non e' il nostro: un sidecar rimasto appeso da una
+			# sessione precedente tiene la porta, e il nostro non e' riuscito
+			# a legarla. Parlargli darebbe 403 a ogni richiesta; meglio dire
+			# subito cosa fare.
+			if not info.get("token_ok", true):
+				sidecar_errore.emit(TranslationServer.translate(
+					"Un'altra istanza del motore occupa la porta %d. Chiudi le "
+					+ "altre finestre di Sprite Sheep, oppure termina il processo "
+					+ "python rimasto aperto, e riavvia.") % PORTA)
+				return
 			sidecar_pronto.emit(info)
 			return
 	sidecar_errore.emit("sidecar non risponde su %s:%d dopo %d tentativi" % [HOST, PORTA, tentativi])
@@ -85,7 +115,8 @@ func _attendi_pronto(tentativi := 20) -> void:
 func get_json(rotta: String) -> Dictionary:
 	var req := HTTPRequest.new()
 	add_child(req)
-	var err := req.request("http://%s:%d%s" % [HOST, PORTA, rotta])
+	var err := req.request("http://%s:%d%s" % [HOST, PORTA, rotta],
+		_intestazioni())
 	if err != OK:
 		req.queue_free()
 		return {}
@@ -106,7 +137,7 @@ func post_json(rotta: String, corpo: Dictionary) -> Dictionary:
 	add_child(req)
 	var err := req.request(
 		"http://%s:%d%s" % [HOST, PORTA, rotta],
-		["Content-Type: application/json"],
+		_intestazioni(["Content-Type: application/json"]),
 		HTTPClient.METHOD_POST,
 		JSON.stringify(corpo))
 	if err != OK:

@@ -29,7 +29,7 @@ theme_override_constants/separation = 6
 custom_minimum_size = Vector2(80, 0)
 layout_mode = 2
 text = "Nome"
-theme_override_colors/font_color = Color(0.6, 0.65, 0.72, 1)
+theme_override_colors/font_color = Color(0.776, 0.8, 0.847, 1)
 theme_override_font_sizes/font_size = 12
 
 [node name="NomeEdit" type="LineEdit" parent="Margine/Colonna/RigaNome"]
@@ -47,7 +47,7 @@ theme_override_constants/separation = 6
 custom_minimum_size = Vector2(80, 0)
 layout_mode = 2
 text = "Durata"
-theme_override_colors/font_color = Color(0.6, 0.65, 0.72, 1)
+theme_override_colors/font_color = Color(0.776, 0.8, 0.847, 1)
 theme_override_font_sizes/font_size = 12
 
 [node name="DurataSlider" type="HSlider" parent="Margine/Colonna/RigaDurata"]
@@ -75,7 +75,7 @@ theme_override_constants/separation = 6
 custom_minimum_size = Vector2(80, 0)
 layout_mode = 2
 text = "Frame"
-theme_override_colors/font_color = Color(0.6, 0.65, 0.72, 1)
+theme_override_colors/font_color = Color(0.776, 0.8, 0.847, 1)
 theme_override_font_sizes/font_size = 12
 
 [node name="FrameSpin" type="SpinBox" parent="Margine/Colonna/RigaFrame"]
@@ -102,7 +102,7 @@ text = "Rimuovi lo sfondo dai frame generati"
 [node name="ScontornaNota" type="Label" parent="Margine/Colonna"]
 unique_name_in_owner = true
 layout_mode = 2
-theme_override_colors/font_color = Color(0.498, 0.529, 0.596, 1)
+theme_override_colors/font_color = Color(0.776, 0.8, 0.847, 1)
 theme_override_font_sizes/font_size = 11
 text = "Senza, lo sprite sheet esce con lo sfondo pieno del prompt."
 autowrap_mode = 3

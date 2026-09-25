@@ -24,7 +24,7 @@ theme_override_font_sizes/font_size = 16
 [node name="Sottotitolo" type="Label" parent="Margine/Colonna"]
 layout_mode = 2
 text = "Sprite Sheep usa ComfyUI, che va installata separatamente."
-theme_override_colors/font_color = Color(0.6, 0.65, 0.72, 1)
+theme_override_colors/font_color = Color(0.776, 0.8, 0.847, 1)
 theme_override_font_sizes/font_size = 11
 autowrap_mode = 3
 

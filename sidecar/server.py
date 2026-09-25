@@ -20,11 +20,13 @@ Rotte:
     POST /piano      -> durata + frame -> lunghezza valida, griglia, indici
     POST /genera     -> avvia la generazione (asincrona)
     GET  /genera     -> stato di un lavoro (?job=...)
+    POST /annulla    -> ferma un lavoro in corso ({"job": ...})
     GET  /comfyui    -> passi della procedura guidata di installazione
     POST /comfyui    -> imposta il percorso oppure avvia ComfyUI
 """
 import argparse
 import json
+import os
 import sys
 import traceback
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -59,15 +61,11 @@ def rileva_capacita() -> dict:
     calcola sopra.
     """
     cap = {"torch": None, "cuda": False, "gpu": None, "vram_mb": None,
-           "fonte_gpu": None}
+           "fonte_gpu": None, "api": None, "produttore": None}
     try:
         import torch
         cap["torch"] = torch.__version__
-        cap["cuda"] = bool(torch.cuda.is_available())
-        if cap["cuda"]:
-            cap["gpu"] = torch.cuda.get_device_name(0)
-            cap["vram_mb"] = torch.cuda.get_device_properties(0).total_memory // (1024 * 1024)
-            cap["fonte_gpu"] = "torch"
+        cap.update(_gpu_da_torch(torch))
     except Exception as e:
         cap["errore"] = f"{type(e).__name__}: {e}"
 
@@ -85,6 +83,76 @@ def rileva_capacita() -> dict:
     return cap
 
 
+## Come si riconosce chi ha fatto la scheda, dal solo nome.
+##
+## Serve perche' `torch.cuda.is_available()` dice **si'** anche su AMD: le
+## build ROCm di PyTorch espongono l'API CUDA cosi' com'e', proprio per non
+## far cambiare il codice a nessuno. Chiamare quella scheda "CUDA" in
+## interfaccia era sbagliato in modo fastidioso — l'utente con una Radeon che
+## stava generando si vedeva scritto che la sua GPU non andava bene.
+PRODUTTORI = (
+    ("amd", ("amd", "radeon", "gfx", "instinct")),
+    ("nvidia", ("nvidia", "geforce", "rtx", "gtx", "quadro", "tesla")),
+    ("intel", ("intel", "arc ", "iris", "xe ")),
+    ("apple", ("apple", "m1", "m2", "m3", "m4")),
+)
+
+
+def _produttore(nome: str) -> str | None:
+    b = (nome or "").lower()
+    for chi, indizi in PRODUTTORI:
+        if any(i in b for i in indizi):
+            return chi
+    return None
+
+
+def _gpu_da_torch(torch) -> dict:
+    """Scheda e API secondo torch, distinguendo CUDA da ROCm e DirectML.
+
+    Tre percorsi diversi, nessuno dei quali si chiama come sembra:
+
+    - **ROCm** (AMD su Linux) si presenta come CUDA. Lo tradisce
+      `torch.version.hip`, che sulle build NVIDIA e' `None`.
+    - **DirectML** (AMD e Intel su Windows) e' un modulo a parte,
+      `torch_directml`, e non compare in `torch.cuda` per niente.
+    - **MPS** (Apple) ha il suo interruttore.
+
+    Il campo `cuda` resta nel dizionario e vuol dire "c'e' una GPU
+    utilizzabile", non "e' una NVIDIA": lo leggono l'interfaccia e i
+    controlli a valle, e cambiargli nome avrebbe voluto dire toccarli tutti
+    per un guadagno nullo. Il nome vero dell'API sta in `api`.
+    """
+    fuori: dict = {}
+    if torch.cuda.is_available():
+        nome = torch.cuda.get_device_name(0)
+        hip = getattr(torch.version, "hip", None)
+        fuori.update({
+            "cuda": True,
+            "gpu": nome,
+            "vram_mb": torch.cuda.get_device_properties(0).total_memory
+            // (1024 * 1024),
+            "fonte_gpu": "torch",
+            "api": "rocm" if hip else "cuda",
+            "produttore": _produttore(nome) or ("amd" if hip else "nvidia"),
+        })
+        return fuori
+
+    if getattr(getattr(torch, "backends", None), "mps", None) is not None \
+            and torch.backends.mps.is_available():
+        return {"cuda": True, "gpu": "Apple Silicon", "fonte_gpu": "torch",
+                "api": "mps", "produttore": "apple"}
+
+    try:
+        import torch_directml
+        if torch_directml.is_available():
+            nome = torch_directml.device_name(0)
+            return {"cuda": True, "gpu": nome, "fonte_gpu": "torch",
+                    "api": "directml", "produttore": _produttore(nome)}
+    except Exception:
+        pass
+    return fuori
+
+
 def _nome_gpu(grezzo: str) -> str:
     """Da "cuda:0 NVIDIA GeForce RTX 3050 : cudaMallocAsync" a
     "NVIDIA GeForce RTX 3050".
@@ -93,8 +161,11 @@ def _nome_gpu(grezzo: str) -> str:
     barra di stato serve il nome della scheda: il resto e' rumore.
     """
     import re
-    s = re.sub(r"^\s*(cuda|cpu|mps|xpu|rocm)\s*:?\s*\d*\s*", "", grezzo,
-               flags=re.I)
+    # `privateuseone` e' il prefisso che torch usa per i backend registrati
+    # da fuori, DirectML compreso: senza, in interfaccia finiva
+    # "privateuseone:0 AMD Radeon RX 7800 XT".
+    s = re.sub(r"^\s*(cuda|cpu|mps|xpu|rocm|hip|directml|privateuseone)"
+               r"\s*:?\s*\d*\s*", "", grezzo, flags=re.I)
     s = re.sub(r"\s*:\s*[A-Za-z]+\s*$", "", s)   # via l'allocatore in coda
     return s.strip() or grezzo.strip()
 
@@ -111,21 +182,51 @@ def _gpu_da_comfyui() -> dict:
     except Exception:
         return {"comfyui_spenta": True}
 
+    # La versione di torch di ComfyUI dice quale build sta girando: le build
+    # ROCm si firmano `2.x.y+rocm6.2`, quelle CUDA `+cu128`. E' l'indizio piu'
+    # affidabile che abbiamo, perche' arriva dal processo che calcola davvero.
+    sistema = d.get("system", {}) or {}
+    torch_ver = str(sistema.get("pytorch_version", "")).lower()
+
     for dev in d.get("devices", []):
         tipo = str(dev.get("type", "")).lower()
         nome = str(dev.get("name", ""))
         if tipo == "cpu" or nome.lower().startswith("cpu"):
             continue
         pulito = _nome_gpu(nome)
+        chi = _produttore(pulito or nome)
+        if "rocm" in torch_ver or "hip" in torch_ver:
+            api = "rocm"
+            chi = chi or "amd"
+        elif tipo in ("mps", "xpu", "directml"):
+            api = tipo
+        elif "cu" in torch_ver and tipo == "cuda":
+            api = "cuda"
+        else:
+            api = tipo or None
+        # Su Apple il dispositivo si chiama "mps" e basta: dal nome non si
+        # ricava niente, ma l'API lo dice da sola.
+        if chi is None and api == "mps":
+            chi = "apple"
+        # Su Apple il campo `name` e' letteralmente "mps": scriverlo in
+        # interfaccia darebbe "GPU: mps - Metal", che non dice niente.
+        if pulito.lower() in ("", "mps", "xpu", "directml"):
+            pulito = {"mps": "Apple Silicon"}.get(api, pulito or nome)
         return {
             "cuda": True,
             "gpu": pulito or nome,
             "vram_mb": int(dev.get("vram_total", 0)) // (1024 * 1024),
             "vram_libera_mb": int(dev.get("vram_free", 0)) // (1024 * 1024),
             "fonte_gpu": "comfyui",
+            "api": api,
+            "produttore": chi,
             "comfyui_spenta": False,
         }
-    return {"comfyui_spenta": False}
+    # ComfyUI risponde ma non ha nessun dispositivo oltre alla CPU: e' un
+    # "no" accertato, diverso dal "non lo so" di ComfyUI spenta. Si dichiara
+    # `cuda: False` invece di lasciarlo sottinteso, cosi' chi legge questo
+    # dizionario da solo non deve indovinare.
+    return {"cuda": False, "comfyui_spenta": False}
 
 
 class Server(ThreadingHTTPServer):
@@ -135,8 +236,63 @@ class Server(ThreadingHTTPServer):
     daemon_threads = True
 
 
+## Il segreto condiviso con l'interfaccia. Godot lo genera a ogni avvio e lo
+## passa nell'ambiente del processo figlio; qui si rilegge. Vuoto vuol dire che
+## il sidecar e' stato lanciato a mano, per sviluppo: in quel caso il token non
+## si chiede, ma i controlli su Origin e Host restano.
+TOKEN = os.environ.get("SPRITESHEEP_TOKEN", "")
+
+## Rotte che rispondono anche senza token. Solo `/health`, e per un motivo
+## preciso: se sulla porta e' rimasto appeso un sidecar di una sessione
+## precedente, col token vecchio, l'interfaccia nuova deve poterlo *vedere*
+## per dire all'utente di chiuderlo. Altrimenti riceverebbe 401 a tutto e
+## mostrerebbe un motore "che non risponde", che e' falso e non aiuta.
+SENZA_TOKEN = {"/health"}
+
+
 class Handler(BaseHTTPRequestHandler):
     server_version = f"SpriteSheep/{config.VERSION}"
+
+    def _autorizzato(self, rotta: str) -> bool:
+        """La richiesta arriva dall'interfaccia, e non da una pagina web?
+
+        Il sidecar ascolta su 127.0.0.1 e fino alla 0.0.5 non chiedeva altro.
+        Ma "solo locale" non vuol dire "solo Sprite Sheep": **qualunque pagina
+        aperta nel browser** puo' mandare una POST a localhost. Con
+        `Content-Type: text/plain` e' una richiesta "semplice", il browser non
+        fa preflight, e `_leggi_json` legge il corpo lo stesso. Una pagina
+        poteva quindi chiamare `/licenza` con `accetto: true` — accettare una
+        licenza al posto dell'utente — e poi `/scarica` per 40 GB, oppure
+        `/comfyui` per avviare un processo.
+
+        Tre controlli, dal piu' economico:
+
+        1. **Origin assente.** I browser lo mandano su ogni POST fra origini
+           diverse; `HTTPRequest` di Godot non lo manda mai. Se c'e', la
+           richiesta viene da una pagina.
+        2. **Host locale.** Contro il DNS rebinding: una pagina puo' far
+           risolvere un suo dominio a 127.0.0.1, ma l'intestazione Host resta
+           il suo dominio.
+        3. **Token**, quando c'e'. Difende anche da altri processi locali,
+           che Origin e Host non fermano.
+        """
+        if self.headers.get("Origin"):
+            return False
+        porta = self.server.server_address[1]
+        host = (self.headers.get("Host") or "").strip().lower()
+        if host not in ("127.0.0.1:%d" % porta, "localhost:%d" % porta):
+            return False
+        if TOKEN and rotta not in SENZA_TOKEN:
+            import hmac
+            dato = self.headers.get("X-SpriteSheep-Token") or ""
+            # Confronto a tempo costante: su localhost il rischio e' teorico,
+            # ma costa una riga e toglie la domanda.
+            if not hmac.compare_digest(dato, TOKEN):
+                return False
+        return True
+
+    def _rifiuta(self) -> None:
+        self._json(403, {"ok": False, "errore": "richiesta non autorizzata"})
 
     def _json(self, code: int, payload: dict) -> None:
         body = json.dumps(payload, ensure_ascii=False).encode("utf-8")
@@ -147,9 +303,18 @@ class Handler(BaseHTTPRequestHandler):
         self.wfile.write(body)
 
     def do_GET(self) -> None:
-        if self.path.split("?")[0] == "/health":
+        rotta = self.path.split("?")[0]
+        if not self._autorizzato(rotta):
+            self._rifiuta()
+            return
+        if rotta == "/health":
+            import hmac
             self._json(200, {
                 "ok": True,
+                # L'interfaccia lo legge per capire se sta parlando col *suo*
+                # sidecar o con uno rimasto appeso da una sessione precedente.
+                "token_ok": not TOKEN or hmac.compare_digest(
+                    self.headers.get("X-SpriteSheep-Token") or "", TOKEN),
                 "app": config.APP_NAME,
                 "version": config.VERSION,
                 "python": sys.version.split()[0],
@@ -182,6 +347,11 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_POST(self) -> None:
         rotta = self.path.split("?")[0]
+        # Il controllo va **prima** di leggere il corpo: una richiesta non
+        # autorizzata non deve nemmeno arrivare al parser.
+        if not self._autorizzato(rotta):
+            self._rifiuta()
+            return
         try:
             dati = self._leggi_json()
         except Exception as e:
@@ -207,6 +377,10 @@ class Handler(BaseHTTPRequestHandler):
                     src, dst,
                     tolleranza=int(dati.get("tolleranza", 225)),
                     rimuovi_ombra=bool(dati.get("rimuovi_ombra", True)),
+                    # "auto" misura il fondo dagli angoli; un colore esplicito
+                    # ("verde", "#00B140", "0,177,64") sceglie quale togliere.
+                    colore=dati.get("colore", "auto"),
+                    tolleranza_tinta=int(dati.get("tolleranza_tinta", 66)),
                 )
                 self._json(200, {"ok": True, "risultato": res})
 
@@ -264,6 +438,9 @@ class Handler(BaseHTTPRequestHandler):
 
             elif rotta == "/genera":
                 self._json(200, genera_mod.avvia(dati))
+
+            elif rotta == "/annulla":
+                self._json(200, genera_mod.annulla(dati.get("job", "")))
 
             elif rotta == "/comfyui":
                 azione = dati.get("azione", "")

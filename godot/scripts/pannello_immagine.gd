@@ -16,6 +16,11 @@ signal immagine_pronta(percorso: String, info: Dictionary)
 var _sidecar: Node
 var _originale := ""      ## file scelto dall'utente, mai modificato
 var _in_uso := ""         ## file effettivamente passato alla generazione
+var _colore: SceltaColore
+## L'immagine sorgente tenuta in memoria: serve al contagocce, che deve
+## leggere il pixel **originale** e non quello che si vede a schermo, scalato
+## e filtrato dal TextureRect.
+var _img_sorgente: Image = null
 
 
 func imposta_sidecar(nodo: Node) -> void:
@@ -28,7 +33,41 @@ func _ready() -> void:
 	_spunta.toggled.connect(_su_spunta)
 	_btn_applica.pressed.connect(_applica_scontorno)
 	get_viewport().files_dropped.connect(_su_file_trascinati)
+
+	_colore = SceltaColore.new()
+	# Sopra il pulsante, sotto la spunta: si sceglie cosa togliere prima di
+	# dire di toglierlo.
+	_spunta.get_parent().add_child(_colore)
+	_spunta.get_parent().move_child(_colore, _btn_applica.get_index())
+	_colore.cambiato.connect(_aggiorna_ui)
+
+	_anteprima.gui_input.connect(_su_clic_anteprima)
+	_anteprima.mouse_default_cursor_shape = Control.CURSOR_CROSS
 	_aggiorna_ui()
+
+
+## Contagocce: il colore si prende dal pixel dell'immagine vera.
+##
+## La conversione passa per il rettangolo **effettivamente occupato** dalla
+## texture dentro il TextureRect, non per le dimensioni del controllo: con
+## `stretch_mode` che conserva le proporzioni restano bande vuote ai lati, e
+## una proporzione diretta leggerebbe il pixel sbagliato di parecchio.
+func _su_clic_anteprima(evento: InputEvent) -> void:
+	if _img_sorgente == null:
+		return
+	var m := evento as InputEventMouseButton
+	if m == null or not m.pressed or m.button_index != MOUSE_BUTTON_LEFT:
+		return
+
+	var iw := float(_img_sorgente.get_width())
+	var ih := float(_img_sorgente.get_height())
+	var q: float = min(_anteprima.size.x / iw, _anteprima.size.y / ih)
+	var disegnata := Vector2(iw, ih) * q
+	var origine := (_anteprima.size - disegnata) * 0.5
+	var dentro := (m.position - origine) / q
+	if dentro.x < 0 or dentro.y < 0 or dentro.x >= iw or dentro.y >= ih:
+		return
+	_colore.preleva(_img_sorgente.get_pixel(int(dentro.x), int(dentro.y)))
 
 
 ## Il selettore del sistema operativo quando c'e', quello di Godot altrimenti.
@@ -91,6 +130,10 @@ func _carica(percorso: String) -> void:
 	_originale = percorso
 	_in_uso = percorso
 	_anteprima.texture = tex
+	# Il contagocce legge sempre l'originale, anche dopo che l'anteprima e'
+	# passata a mostrare il risultato scontornato: prelevare dal PNG con alfa
+	# darebbe il colore gia' tolto, cioe' niente.
+	_img_sorgente = tex.get_image()
 	_percorso_lbl.text = percorso.get_file()
 	_analizza()
 
@@ -123,14 +166,19 @@ func _analizza() -> void:
 		righe.append("[color=#e0a040]%s[/color]"
 			% (tr("%d x %d — non quadrata, verra' deformata") % [w, h]))
 
+	_colore.mostra_misurato(str(i.get("colore_sfondo", "")))
 	if i.get("ha_canale_alfa", false) and float(i.get("trasparenti_pct", 0)) > 1.0:
 		righe.append(tr("Sfondo gia' trasparente (%.0f%%)") % i.get("trasparenti_pct", 0))
 		_spunta.button_pressed = false
-	elif i.get("sfondo_uniforme_chiaro", false):
-		righe.append(tr("Sfondo chiaro uniforme: rimozione consigliata"))
+	elif i.get("sfondo_tinta_unita", false):
+		# Non si dice piu' "chiaro": il fondo puo' essere verde, magenta o
+		# nero, e quello che conta e' che sia **uno solo**.
+		righe.append(tr("Sfondo a tinta unita %s: rimozione consigliata")
+			% str(i.get("colore_sfondo", "")))
 		_spunta.button_pressed = true
 	else:
-		righe.append(tr("Sfondo non uniforme: la rimozione potrebbe essere imprecisa"))
+		righe.append(tr("Gli angoli non concordano (scarto %.0f): usa il contagocce")
+			% float(i.get("scarto_angoli", 0)))
 
 	_info_lbl.text = "\n".join(righe)
 	_aggiorna_ui()
@@ -150,6 +198,8 @@ func _applica_scontorno() -> void:
 	var r: Dictionary = await _sidecar.post_json("/scontorna", {
 		"sorgente": _originale,
 		"rimuovi_ombra": true,
+		"colore": _colore.colore(),
+		"tolleranza_tinta": _colore.tolleranza(),
 	})
 
 	_btn_applica.text = tr("Scontorna adesso")
@@ -163,8 +213,14 @@ func _applica_scontorno() -> void:
 	var tex := _carica_texture(_in_uso)
 	if tex != null:
 		_anteprima.texture = tex
-	_info_lbl.text = "[color=#5cc76e]%s[/color]" \
-		% (tr("Sfondo rimosso — %.0f%% trasparente") % res.get("trasparenti_pct", 0))
+	_colore.mostra_misurato(str(res.get("colore_sfondo", "")))
+	# Il colore tolto va detto sempre, non solo su "automatico": quando il
+	# risultato non e' quello atteso e' la prima cosa da guardare.
+	_info_lbl.text = "[color=#5cc76e]%s[/color]\n[color=#c6ccd8]%s[/color]" % [
+		tr("Sfondo rimosso — %.0f%% trasparente") % res.get("trasparenti_pct", 0),
+		tr("colore tolto %s · bordo sfumato %.1f%%") % [
+			str(res.get("colore_sfondo", "?")),
+			float(res.get("bordo_sfumato_pct", 0))]]
 	_aggiorna_ui()
 	immagine_pronta.emit(_in_uso, res)
 
@@ -178,3 +234,10 @@ func _aggiorna_ui() -> void:
 ## Percorso da usare a valle: scontornato se applicato, altrimenti l'originale.
 func percorso_attivo() -> String:
 	return _in_uso
+
+
+## Il colore scelto qui vale anche per i **frame generati**: il prompt chiede
+## quel fondo, quindi la clip esce con lo stesso, e scontornarla con un colore
+## diverso da quello dello sprite sarebbe incoerente.
+func colore_sfondo() -> String:
+	return "auto" if _colore == null else _colore.colore()

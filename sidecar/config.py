@@ -71,7 +71,20 @@ DEFAULT_PORT = 8765
 HOST = "127.0.0.1"
 
 APP_NAME = "Sprite Sheep"
-VERSION = "0.0.4-pre-alpha"
+
+# Unica fonte della versione per tutto il lato Python. `edizione` la rilegge da
+# qui invece di tenerne una sua: erano due costanti indipendenti, e alzandone
+# una sola `/health` rispondeva un numero e il badge dell'edizione un altro,
+# nella stessa schermata. Due numeri che si contraddicono a video sono peggio
+# di un numero vecchio, perche' nessuno sa a quale credere.
+#
+# Il lato Godot ha la sua in `project.godot` (application/config/version), che
+# non puo' leggere questa: `build.py` controlla che coincidano e si ferma se no.
+#
+# Il numero e' sceso da 0.0.5 a 0.0.4 e non e' un errore: la 0.0.4 era stata
+# costruita ma mai pubblicata, quindi per chi scarica non e' mai esistita.
+# Questa build prende il suo posto.
+VERSION = "0.0.5-pre-alpha"
 
 # ---------------------------------------------------------------------------
 # MODALITA' DI PROVA — spenta.

@@ -34,6 +34,9 @@ var _sidecar: Node
 var _principale: Control
 var _job := ""
 var _timer: Timer
+## Annulla gia' chiesto, in attesa che la GPU si fermi davvero: fra il clic e
+## lo stop possono passare decine di secondi, e un secondo clic non serve.
+var _annullando := false
 ## Testo completo dell'ultimo errore, quello che finisce negli appunti.
 var _rapporto := ""
 
@@ -52,7 +55,7 @@ func imposta(sidecar: Node, principale: Control) -> void:
 func _ready() -> void:
 	_durata.value_changed.connect(_su_durata)
 	_frame.value_changed.connect(func(_v: float) -> void: _ricalcola())
-	_btn.pressed.connect(_genera)
+	_btn.pressed.connect(_su_bottone)
 	Tema.accenta(_btn)
 	_btn_copia.pressed.connect(_copia_errore)
 	_btn_traccia.pressed.connect(func() -> void:
@@ -103,7 +106,7 @@ func _ricalcola() -> void:
 		return
 	var modello: String = _principale.modello_attivo
 	if modello == "":
-		_piano_lbl.text = "[color=#8a93a3]%s[/color]" % tr("Scegli un modello installato.")
+		_piano_lbl.text = "[color=#c6ccd8]%s[/color]" % tr("Scegli un modello installato.")
 		_aggiorna_bottone()
 		return
 
@@ -134,7 +137,7 @@ func _ricalcola() -> void:
 			% (tr("Durata ridotta a %.2f s: e' il massimo del modello.")
 				% float(p.get("durata_effettiva_s", 0))))
 	if abs(float(p.get("durata_effettiva_s", 0)) - _durata.value) > 0.15:
-		righe.append("[color=#8a93a3]%s[/color]" % tr(
+		righe.append("[color=#c6ccd8]%s[/color]" % tr(
 			"La durata reale differisce da quella chiesta: il modello accetta solo certe lunghezze."))
 
 	_piano_lbl.text = "\n".join(righe)
@@ -145,13 +148,38 @@ func _aggiorna_bottone() -> void:
 	if _principale == null:
 		return
 	var pronto: bool = _principale.pronto_per_generare() and _job == ""
-	_btn.disabled = not pronto
+	# Durante la generazione il pulsante non si spegne: diventa Annulla.
+	# Prima restava grigio con scritto "in corso" per dieci minuti, e l'unico
+	# modo di fermare un prompt sbagliato era chiudere il programma.
 	if _job != "":
-		_btn.text = tr("Generazione in corso...")
-	elif pronto:
+		_btn.disabled = _annullando
+		_btn.text = tr("Annullamento...") if _annullando else tr("Annulla")
+		return
+	_btn.disabled = not pronto
+	if pronto:
 		_btn.text = tr("Genera sprite sheet e GIF")
 	else:
 		_btn.text = tr("Servono sprite, prompt valido e modello")
+
+
+func _su_bottone() -> void:
+	if _job == "":
+		_genera()
+	else:
+		_annulla()
+
+
+func _annulla() -> void:
+	if _sidecar == null or _annullando:
+		return
+	_annullando = true
+	_aggiorna_bottone()
+	var r: Dictionary = await _sidecar.post_json("/annulla", {"job": _job})
+	# Se il lavoro era gia' finito nel frattempo, il sidecar lo dice e il
+	# prossimo giro del timer mostrera' l'esito vero: niente da fare qui.
+	if not r.get("ok", false):
+		_annullando = false
+		_aggiorna_bottone()
 
 
 func _genera() -> void:
@@ -169,6 +197,7 @@ func _genera() -> void:
 		"durata_s": _durata.value,
 		"n_frame": int(_frame.value),
 		"scontorna": _scontorna.button_pressed,
+		"colore_sfondo": _principale.colore_sfondo(),
 	})
 	if r.has("edizione"):
 		edizione_cambiata.emit(r["edizione"])
@@ -189,14 +218,32 @@ func _controlla_job() -> void:
 	_barra.value = float(s.get("percentuale", 0)) * 100.0
 
 	if s.get("attivo", true):
-		_esito.text = "[color=#8a93a3]%s...[/color] [color=#5ccf7e]%s[/color]" % [
-			str(s.get("fase", "in corso")), _cronometro()]
+		# Due livelli: la fase della catena (inferenza, scontorno, gif) e, se
+		# c'e', cosa sta facendo ComfyUI dentro l'inferenza. La seconda arriva
+		# dal WebSocket e cambia ogni pochi decimi di secondo; senza, la riga
+		# diceva "inferenza..." per dieci minuti di fila.
+		var dettaglio := str(s.get("dettaglio", ""))
+		var quanto := "%.0f%%" % (float(s.get("percentuale", 0)) * 100.0)
+		if dettaglio != "":
+			_esito.text = "[color=#c6ccd8]%s[/color] [color=#ffffff]%s[/color] [color=#5ccf7e]%s[/color]" % [
+				quanto, dettaglio, _cronometro()]
+		else:
+			_esito.text = "[color=#c6ccd8]%s %s...[/color] [color=#5ccf7e]%s[/color]" % [
+				quanto, str(s.get("fase", "in corso")), _cronometro()]
 		return
 
 	_timer.stop()
 	_durata_ultima = _trascorso_s()
 	_job = ""
+	_annullando = false
 	_aggiorna_bottone()
+
+	# Annullato non e' un errore: niente rosso, niente traccia da copiare.
+	if str(s.get("fase", "")) == "annullato":
+		_barra.value = 0
+		_esito.text = "[color=#c6ccd8]%s[/color] [color=#ffffff]%s[/color]" % [
+			tr("Generazione annullata."), _formatta(_durata_ultima)]
+		return
 
 	if s.get("errore", null) != null:
 		_mostra_errore(s)
@@ -204,7 +251,7 @@ func _controlla_job() -> void:
 
 	var sfondo := tr("Sfondo dei frame rimosso") if s.get("scontornato", true) \
 		else tr("Sfondo dei frame conservato")
-	_esito.text = "[color=#5ccf7e]%s[/color] [color=#e2e6ee]%s[/color] [color=#8a93a3]· %s[/color]\n[color=#7f8798]%s[/color]" % [
+	_esito.text = "[color=#5ccf7e]%s[/color] [color=#ffffff]%s[/color] [color=#c6ccd8]· %s[/color]\n[color=#c6ccd8]%s[/color]" % [
 		tr("Fatto."), _formatta(_durata_ultima), sfondo, str(s.get("cartella", ""))]
 	if s.has("edizione"):
 		edizione_cambiata.emit(s["edizione"])

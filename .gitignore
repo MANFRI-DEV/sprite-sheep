@@ -7,7 +7,9 @@ godot/.godot/
 # Build e pacchetti. Pesano oltre 100 MB l'uno: su GitHub vanno come
 # *release*, non come file del repository.
 dist/
+dist_linux/
 *.zip
+*.tar.gz
 
 # Pesi dei modelli: decine di gigabyte, scaricati dall'applicazione dopo
 # l'accettazione delle rispettive licenze. Non possono stare in un repository

@@ -1,4 +1,4 @@
-SPRITE SHEEP 0.0.4-pre-alpha
+SPRITE SHEEP 0.0.5-pre-alpha
 ============================
 
 From one sprite and a prompt, generates an animated sprite sheet and a GIF.
@@ -67,7 +67,19 @@ WHAT YOU NEED TO INSTALL
 
 HARDWARE
 --------
-  An NVIDIA GPU with at least 8 GB of VRAM and CUDA drivers.
+  A GPU with at least 8 GB of VRAM. Any card ComfyUI can drive will do:
+
+    NVIDIA   CUDA drivers. This is the path the program was developed and
+             measured on.
+    AMD      DirectML on Windows, ROCm on Linux. Sprite Sheep detects the
+             card and reports which API is in use. The generation itself is
+             ComfyUI's job, and on AMD it is slower and less tested than on
+             NVIDIA: treat it as usable, not as validated.
+    Intel    Arc with oneAPI, same caveat as AMD.
+
+  The computation never happens inside Sprite Sheep: it asks ComfyUI which
+  device it is using and shows it to you.
+
   Without a GPU the application starts and tells you so, but generating is
   impractical.
   Disk space: 39 GB for H3, 17 GB for WAN.

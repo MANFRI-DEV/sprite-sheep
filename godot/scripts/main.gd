@@ -4,7 +4,10 @@ extends Control
 ## sola, non meritano spazio nel flusso di ogni giorno.
 
 @onready var _sfondo: ColorRect = %Sfondo
-@onready var _spie_riga: HBoxContainer = %SpieRiga
+# HFlowContainer, non HBoxContainer: le spie vanno a capo quando la finestra
+# e' stretta. Il tipo va tenuto largo, altrimenti l'assegnazione fallisce e
+# porta giu' tutto `_ready` con se'.
+@onready var _spie_riga: Container = %SpieRiga
 @onready var _dettagli: RichTextLabel = %DettagliLabel
 @onready var _sidecar: Node = %Sidecar
 @onready var _pann_immagine: PanelContainer = %PannelloImmagine
@@ -17,6 +20,7 @@ extends Control
 @onready var _btn_impostazioni: Button = %ImpostazioniButton
 @onready var _btn_copia_diag: Button = %CopiaDiagButton
 @onready var _lingua: OptionButton = %LinguaOption
+@onready var _riga_collegamenti: Container = %CollegamentiRiga
 
 const Predefiniti := preload("res://scripts/predefiniti.gd")
 const SCENA_SPLASH := preload("res://scenes/splash.tscn")
@@ -65,6 +69,9 @@ func _ready() -> void:
 	_pann_comfy.setup_cambiato.connect(_su_setup)
 
 	_btn_impostazioni.pressed.connect(_apri_impostazioni)
+	_prepara_collegamenti()
+	get_viewport().size_changed.connect(_adatta)
+	_adatta()
 	_finestra.close_requested.connect(func() -> void: _finestra.hide())
 	_btn_copia_diag.pressed.connect(func() -> void:
 		DisplayServer.clipboard_set(_diagnostica)
@@ -230,6 +237,59 @@ func _su_durata(secondi: float) -> void:
 
 
 ## Tutto il necessario per generare e' presente?
+## Due colonne su una finestra larga, una sola su una stretta.
+##
+## Sotto i 1040 punti le due colonne diventano larghe circa 500 ciascuna, e a
+## quel punto il pannello dell'immagine, la tendina del colore e la riga della
+## tolleranza cominciano a tagliarsi. Impilarle e' meglio che schiacciarle: si
+## scorre di piu', ma si legge tutto.
+##
+## Il nodo `Corpo` e' un **BoxContainer**, non un HBoxContainer: su un
+## HBoxContainer la proprieta' `vertical` non si scrive — Godot la tiene
+## inchiodata a falso e l'assegnazione viene ingoiata senza errore. La prima
+## versione faceva proprio cosi' e non impilava niente, sembrando una soglia
+## sbagliata invece che una riga senza effetto.
+##
+## Cosi' non serve spostare nodi: cambiare padre a runtime vorrebbe dire
+## ricostruire i pannelli e perdere quello che c'e' dentro.
+const LARGHEZZA_DUE_COLONNE := 1040
+
+
+func _adatta() -> void:
+	var corpo := $Margine/Colonna/Corpo as BoxContainer
+	if corpo == null:
+		return
+	var stretta := get_viewport_rect().size.x < LARGHEZZA_DUE_COLONNE
+	if corpo.vertical == stretta:
+		return
+	corpo.vertical = stretta
+	# Girare il contenitore non basta: i due scorrevoli espandono **nella
+	# direzione sbagliata**. Un ScrollContainer ha dimensione minima zero, e in
+	# colonna senza l'espansione verticale si schiaccia a niente: i pannelli
+	# c'erano ancora ma alti zero pixel, cioe' una finestra vuota.
+	for c in corpo.get_children():
+		var s := c as Control
+		if s == null:
+			continue
+		s.size_flags_horizontal = (Control.SIZE_FILL if stretta
+			else Control.SIZE_EXPAND_FILL)
+		s.size_flags_vertical = (Control.SIZE_EXPAND_FILL if stretta
+			else Control.SIZE_FILL)
+
+
+## I collegamenti esterni della testata: aggiornamenti, Discord, Instagram,
+## donazioni. Chi decide quali sono e in che ordine e' `collegamenti.gd`, che
+## tiene anche il nome del pulsante: qui si passa solo la riga che li contiene.
+func _prepara_collegamenti() -> void:
+	Collegamenti.prepara(_riga_collegamenti)
+
+
+## Il colore di sfondo scelto nel pannello 1, che il pannello 5 deve mandare
+## al sidecar insieme al resto: e' un dato dell'immagine, non della generazione.
+func colore_sfondo() -> String:
+	return _pann_immagine.colore_sfondo()
+
+
 func pronto_per_generare() -> bool:
 	return motore_pronto and sprite_scelto != "" and prompt_valido and modello_attivo != ""
 
@@ -266,12 +326,12 @@ func _su_pronto(info: Dictionary) -> void:
 
 	if cap.get("cuda", false):
 		righe.append(tr("GPU: %s ([b]%d MB[/b])")
-			% [cap.get("gpu", "?"), int(cap.get("vram_mb", 0))])
+			% [_nome_gpu(cap), int(cap.get("vram_mb", 0))])
 	elif cap.get("comfyui_spenta", false):
 		righe.append("[color=#e0a840]%s[/color]"
 			% tr("GPU non ancora nota: avvia ComfyUI"))
 	else:
-		righe.append("[color=#e0a840]%s[/color]" % tr("Nessuna GPU CUDA"))
+		righe.append("[color=#e0a840]%s[/color]" % tr("Nessuna GPU compatibile"))
 
 	_su_edizione(info.get("edizione", {}))
 	righe.append("%s %s" % [tr("Modelli:"), info.get("models_dir", "?")])
@@ -283,12 +343,33 @@ func _su_pronto(info: Dictionary) -> void:
 	_carica_esempio()
 
 
+## Il nome della scheda con accanto l'API che la muove.
+##
+## "CUDA" non si scrive piu' a meno che non sia vero: le build ROCm di PyTorch
+## espongono l'API CUDA e il sidecar le vedeva come NVIDIA, cosi' chi generava
+## con una Radeon si leggeva in faccia "nessuna GPU CUDA" mentre la GPU
+## lavorava. Ora l'etichetta arriva dal sidecar e dice ROCm, DirectML o quel
+## che e'.
+const API_LEGGIBILE := {
+	"cuda": "CUDA", "rocm": "ROCm", "directml": "DirectML",
+	"mps": "Metal", "xpu": "oneAPI",
+}
+
+
+func _nome_gpu(cap: Dictionary) -> String:
+	var nome: String = str(cap.get("gpu", "?"))
+	var api: String = str(cap.get("api", ""))
+	if api != "" and API_LEGGIBILE.has(api):
+		return "%s - %s" % [nome, API_LEGGIBILE[api]]
+	return nome
+
+
 ## Tre casi distinti, e nessuno dei tre e' un guasto da solo: GPU nota, GPU
 ## ancora ignota perche' ComfyUI e' spenta, oppure nessuna GPU. Confonderli
-## faceva apparire "nessuna GPU CUDA" a chi ne aveva una che lavorava.
+## faceva apparire "nessuna GPU" a chi ne aveva una che lavorava.
 func _aggiorna_spia_motore(cap: Dictionary) -> void:
 	if cap.get("cuda", false):
-		var nome: String = str(cap.get("gpu", "pronto"))
+		var nome: String = _nome_gpu(cap)
 		var mb := int(cap.get("vram_mb", 0))
 		_spia("motore", Tema.ACCENTO,
 			"%s (%d MB)" % [nome, mb] if mb > 0 else nome)
@@ -297,7 +378,7 @@ func _aggiorna_spia_motore(cap: Dictionary) -> void:
 	else:
 		# Qui la GPU manca davvero: su CPU una generazione video e' di fatto
 		# impraticabile, e va detto subito.
-		_spia("motore", Tema.ERRORE, tr("Nessuna GPU CUDA"))
+		_spia("motore", Tema.ERRORE, tr("Nessuna GPU compatibile"))
 
 
 ## Il testo per gli appunti non deve portarsi dietro il markup: prima toglieva

@@ -87,7 +87,7 @@ func _disegna() -> void:
 			_tendina.selected = clampi(indice_tendina, 0, _tendina.item_count - 1)
 
 	if _esito_cartella != "":
-		var colore := Color(0.6, 0.65, 0.72)
+		var colore := Color(0.776, 0.8, 0.847)
 		var testo := _esito_cartella
 		if testo.begins_with("[verde]"):
 			colore = Color(0.35, 0.8, 0.45)
@@ -150,7 +150,7 @@ func _riga(m: Dictionary) -> Control:
 	var desc := Label.new()
 	desc.text = str(m["descrizione"])
 	desc.add_theme_font_size_override("font_size", 11)
-	desc.add_theme_color_override("font_color", Color(0.6, 0.65, 0.72))
+	desc.add_theme_color_override("font_color", Color(0.776, 0.8, 0.847))
 	desc.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	box.add_child(desc)
 
@@ -184,7 +184,7 @@ func _riga(m: Dictionary) -> Control:
 		totali.text = tr("%.1f di %.1f GB") % [
 			float(dl.get("gb_scaricati", 0.0)), float(dl.get("gb_totali", 0.0))]
 		totali.add_theme_font_size_override("font_size", 12)
-		totali.add_theme_color_override("font_color", Color(0.6, 0.65, 0.72))
+		totali.add_theme_color_override("font_color", Color(0.776, 0.8, 0.847))
 		totali.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 		riga_pct.add_child(totali)
 		box.add_child(riga_pct)
@@ -193,7 +193,7 @@ func _riga(m: Dictionary) -> Control:
 			int(dl.get("indice", 0)), int(dl.get("totale", 1)),
 			dl.get("file_corrente", "..."),
 			float(dl.get("gb_fatti", 0.0)), float(dl.get("gb_file", 0.0))],
-			Color(0.6, 0.65, 0.72)))
+			Color(0.776, 0.8, 0.847)))
 	elif dl.get("errore", null) != null:
 		box.add_child(_etichetta(tr("Errore: %s") % dl["errore"], Color(0.9, 0.4, 0.4)))
 	else:

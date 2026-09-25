@@ -77,6 +77,51 @@ CATALOGO: dict[str, dict] = {
              "gb": 0.6, "ruolo": "vae_audio"},
         ],
     },
+    # -----------------------------------------------------------------------
+    # FastH3: lo stesso H3 distillato per girare in **otto passi** invece di
+    # venti. Non e' un modello diverso, e' lo stesso addestrato a saltare la
+    # maggior parte del percorso di denoising (DMD2 senza dati, piu' attenzione
+    # sparsa VSA all'80%).
+    #
+    # Il text encoder e i due VAE sono **gli stessi** della voce qui sopra: chi
+    # ha gia' H3 scarica solo i 22 GB del checkpoint. E' il motivo per cui la
+    # voce e' separata invece di essere un'opzione dentro l'altra — l'utente
+    # vede quanto gli manca davvero.
+    #
+    # La licenza e' la stessa di H3, comprese le esclusioni territoriali: il
+    # peso e' derivato da quei pesi e se le porta dietro.
+    "minimax_h3_fast": {
+        "nome": "MiniMax H3 Fast (8 passi)",
+        "descrizione_key": "mod.h3fast.descrizione",
+        "licenza": {
+            "id": "minimax-h3-community",
+            "nome": "MiniMax H3 Community License",
+            "url": "https://huggingface.co/MiniMaxAI/MiniMax-H3/raw/main/LICENSE",
+            "riassunto_key": "lic.h3.riassunto",
+            "avvertenze_key": [
+                "lic.h3.territorio",
+                "lic.h3.ricavi",
+                "lic.h3.no_training",
+                "lic.non_parere_legale",
+            ],
+        },
+        "file": [
+            {"repo": "FastVideo/FastVideo-FastH3-Comfy",
+             "path": "diffusion_models/fastvideo_fasth3_8step_v2_pruned_int8_convrot.safetensors",
+             "gb": 22.1, "ruolo": "diffusion",
+             "nota": "int8 convrot: quantizzazione adatta ad Ampere (RTX 30xx)"},
+            {"repo": "Abiray/MiniMax-H3-GGUF",
+             "path": "text_encoders/qwen3vl_32b_minimax_h3_int4_convrot.safetensors",
+             "gb": 13.9, "ruolo": "text_encoder",
+             "nota": "in comune con MiniMax H3"},
+            {"repo": "Comfy-Org/MiniMax-H3",
+             "path": "vae/minimax_h3_video_vae_fp16.safetensors",
+             "gb": 4.9, "ruolo": "vae", "nota": "in comune con MiniMax H3"},
+            {"repo": "Comfy-Org/MiniMax-H3",
+             "path": "vae/minimax_h3_audio_vae_fp32.safetensors",
+             "gb": 0.6, "ruolo": "vae_audio", "nota": "in comune con MiniMax H3"},
+        ],
+    },
 }
 
 # Stato dei download in corso, letto da GET /modelli
@@ -116,6 +161,38 @@ def licenza_accettata(model_id: str) -> bool:
 
 def _percorso_locale(model_id: str, f: dict) -> Path:
     return config.MODELS_DIR / model_id / Path(f["path"]).name
+
+
+def riusa_da_altri_modelli(model_id: str) -> list[str]:
+    """Collega i pesi che un altro modello gia' installato ha in comune.
+
+    FastH3 divide con MiniMax H3 il text encoder e i due VAE: venti giga su
+    ventidue erano gia' sul disco, ma in un'altra cartella, e senza questo
+    passaggio il programma li avrebbe chiesti di nuovo. Chi installa la
+    variante veloce avrebbe scaricato quaranta giga invece di ventidue, per
+    ritrovarsi due copie identiche dello stesso file.
+
+    Si collega con hardlink: stesso volume, zero spazio in piu'. Su volumi
+    diversi `_porta_nel_progetto` ricade sulla copia, che e' il caso raro.
+    """
+    if model_id not in CATALOGO:
+        return []
+    fatti = []
+    for f in CATALOGO[model_id]["file"]:
+        dst = _percorso_locale(model_id, f)
+        if dst.exists():
+            continue
+        nome = dst.name
+        for altra in sorted(config.MODELS_DIR.glob("*/" + nome)):
+            if altra.parent.name == model_id or not altra.is_file():
+                continue
+            try:
+                _porta_nel_progetto(altra, dst)
+                fatti.append(nome)
+            except OSError:
+                pass                  # si ricadra' sul download normale
+            break
+    return fatti
 
 
 def cerca_in_cartella(model_id: str, cartella: str) -> dict:
@@ -451,6 +528,9 @@ def avvia_download(model_id: str) -> dict:
         return {"ok": False, "errore": t("mod.err.sconosciuto")}
     if not licenza_accettata(model_id):
         return {"ok": False, "errore": "licenza non accettata: download rifiutato"}
+    # Prima di scaricare si guarda cosa c'e' gia': fra due varianti dello
+    # stesso modello i pesi in comune sono la maggior parte.
+    riusa_da_altri_modelli(model_id)
     with _lock:
         if _progressi.get(model_id, {}).get("attivo"):
             return {"ok": False, "errore": "download gia' in corso"}

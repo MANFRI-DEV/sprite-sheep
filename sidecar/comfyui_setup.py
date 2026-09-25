@@ -19,10 +19,19 @@ from testi import t
 IMPOSTAZIONI = config.CACHE_DIR / "comfyui.json"
 LOG_COMFY = config.CACHE_DIR / "comfyui.log"
 URL_DOWNLOAD = "https://github.com/comfyanonymous/ComfyUI/releases/latest"
-URL_GUIDA = "https://docs.comfy.org/installation/desktop/windows"
+## La guida dipende dal sistema: mandare un utente Linux alla pagina Windows
+## e' un rimando che non aiuta nessuno, e su AMD le due installazioni non si
+## somigliano nemmeno (ROCm contro DirectML).
+URL_GUIDA = ("https://docs.comfy.org/installation/desktop/windows"
+             if os.name == "nt"
+             else "https://docs.comfy.org/installation/manual_install")
 
 # Nomi di cartella tipici, cercati su ogni unita' e nelle cartelle utente:
 # nessun percorso completo cablato, cosi' la ricerca funziona ovunque.
+#
+# Le ultime voci sono le convenzioni Linux: `~/ComfyUI` clonato a mano,
+# `~/.local/share` e `/opt` per le installazioni di sistema. Costano niente da
+# provare su Windows, dove semplicemente non esistono.
 NOMI_TIPICI = [
     "ComfyUI",
     "ComfyUI_windows_portable/ComfyUI",
@@ -30,6 +39,10 @@ NOMI_TIPICI = [
     "AI_Video/ComfyUI",
     "Documents/ComfyUI",
     "Desktop/ComfyUI",
+    "git/ComfyUI",
+    "src/ComfyUI",
+    ".local/share/ComfyUI",
+    "opt/ComfyUI",
 ]
 
 ## La lista dei file attesi **non sta piu' qui**: si ricava dal catalogo in
@@ -335,8 +348,10 @@ def stato() -> dict:
 _INTERPRETI = [
     ("venv", "Scripts", "python.exe"),      # venv Windows
     ("venv", "bin", "python"),              # venv Linux/macOS
+    ("venv", "bin", "python3"),             # distribuzioni senza alias python
     (".venv", "Scripts", "python.exe"),
     (".venv", "bin", "python"),
+    (".venv", "bin", "python3"),
 ]
 _INTERPRETI_VICINI = [
     ("python_embeded", "python.exe"),       # pacchetto portatile Windows

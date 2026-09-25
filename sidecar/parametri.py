@@ -21,6 +21,10 @@ FRAZIONE_UTILE = 0.85
 # Regole per modello: passo e offset della lunghezza valida, piu' gli fps
 REGOLE = {
     "minimax_h3_fl2va": {"fps": 24, "passo": 17, "offset": 5, "max": 362},
+    # FastH3 e' lo stesso modello distillato: stesse lunghezze valide, stessi
+    # fps. Cambia solo quanti passi di campionamento servono, che e' una cosa
+    # del backend e non della geometria della clip.
+    "minimax_h3_fast":  {"fps": 24, "passo": 17, "offset": 5, "max": 362},
     "wan22_ti2v_5b":    {"fps": 24, "passo": 4,  "offset": 1, "max": 241},
 }
 

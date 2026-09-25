@@ -27,6 +27,12 @@ from backend import ottieni_backend
 _lavori: dict[str, dict] = {}
 _lock = threading.Lock()
 
+## Un interruttore per lavoro. Il backend lo guarda ogni due secondi; alzarlo
+## e' tutto quello che serve per fermare una generazione. Sta fuori da
+## `_lavori` perche' quello si copia per rispondere a `/genera?job=`, e un
+## `threading.Event` non si serializza in JSON.
+_fermi: dict[str, threading.Event] = {}
+
 
 def _aggiorna(job_id: str, **campi) -> None:
     with _lock:
@@ -38,7 +44,8 @@ def stato(job_id: str) -> dict:
         return dict(_lavori.get(job_id, {"esiste": False}))
 
 
-def _esegui(job_id: str, richiesta: dict) -> None:
+def _esegui(job_id: str, richiesta: dict, fermo: threading.Event) -> None:
+    from backend.comfyui_bridge import Annullato
     try:
         model_id = richiesta["modello"]
         nome = richiesta.get("nome") or "animazione"
@@ -64,10 +71,23 @@ def _esegui(job_id: str, richiesta: dict) -> None:
             larghezza=int(richiesta.get("larghezza", 448)),
             altezza=int(richiesta.get("altezza", 448)),
             seed=int(richiesta.get("seed", 0)),
-            avanzamento=lambda p: _aggiorna(job_id, percentuale=round(p * 0.9, 3)),
+            fermo=fermo,
+            # Il backend racconta due cose: a che punto e' e cosa sta facendo.
+            # La seconda e' facoltativa — i backend nativi non la mandano — ma
+            # quando c'e' e' l'unica differenza fra una barra che informa e una
+            # che sembra bloccata.
+            # Dopo un Annulla il WebSocket continua a raccontare i passi
+            # finche' ComfyUI non si ferma davvero: senza la condizione, la
+            # scritta "sto fermando" verrebbe coperta da "genero i fotogrammi
+            # 5/8" e sembrerebbe che il clic non sia servito.
+            avanzamento=lambda p, dettaglio="": None if fermo.is_set() else
+            _aggiorna(job_id, percentuale=round(p * 0.9, 3),
+                      **({"dettaglio": dettaglio} if dettaglio else {})),
         )
 
-        _aggiorna(job_id, fase="composizione", percentuale=0.92)
+        # Il dettaglio si azzera passando alla fase dopo: lasciarlo mostrerebbe
+        # "decodifico il video" mentre si sta gia' scontornando.
+        _aggiorna(job_id, fase="composizione", percentuale=0.92, dettaglio="")
         scelti = [frames[i] for i in piano["indici"] if i < len(frames)]
 
         # I modelli di diffusione video non producono un canale alfa: i frame
@@ -78,7 +98,12 @@ def _esegui(job_id: str, richiesta: dict) -> None:
         scontorna = bool(richiesta.get("scontorna", True))
         if scontorna:
             _aggiorna(job_id, fase="scontorno", percentuale=0.93)
-            scelti = [scontorno.scontorna_immagine(f) for f in scelti]
+            # Il colore da togliere e' quello scelto per lo sprite sorgente:
+            # e' lo stesso che il prompt ha chiesto come fondo, quindi i frame
+            # generati lo hanno uguale. Su "auto" si misura frame per frame.
+            colore = richiesta.get("colore_sfondo", "auto")
+            scelti = [scontorno.scontorna_immagine(f, colore=colore)
+                      for f in scelti]
 
         # La filigrana va qui, sui frame gia' scelti e scontornati: cosi'
         # finisce sia nel foglio sia nella GIF, e non viene mangiata dallo
@@ -107,6 +132,10 @@ def _esegui(job_id: str, richiesta: dict) -> None:
                   sheet=r_sheet, gif=r_gif, cartella=str(dest),
                   scontornato=scontorna, edizione=edizione.stato())
 
+    except Annullato:
+        # Non e' un errore: l'utente ha chiesto di fermare. Niente traccia da
+        # copiare, niente rosso in interfaccia — solo lo stato.
+        _aggiorna(job_id, fase="annullato", attivo=False, dettaglio="")
     except Exception as e:
         # La traccia viaggia intera fino all'interfaccia: e' quella che serve
         # incollare quando qualcosa si rompe, e ricostruirla a mano dai log del
@@ -134,6 +163,28 @@ def avvia(richiesta: dict) -> dict:
                 "edizione": edizione.stato()}
 
     job_id = "job_%d" % int(time.time() * 1000)
+    fermo = threading.Event()
+    with _lock:
+        _fermi[job_id] = fermo
     _aggiorna(job_id, attivo=True, fase="avvio", percentuale=0.0, errore=None)
-    threading.Thread(target=_esegui, args=(job_id, richiesta), daemon=True).start()
+    threading.Thread(target=_esegui, args=(job_id, richiesta, fermo),
+                     daemon=True).start()
     return {"ok": True, "job": job_id, "edizione": edizione.stato()}
+
+
+def annulla(job_id: str) -> dict:
+    """Chiede di fermare un lavoro. Risponde subito; lo stop vero arriva
+    entro un paio di secondi, quando il backend guarda l'interruttore, e
+    ComfyUI si ferma al primo confine fra un passo e l'altro.
+
+    Lo stato passa a `annullamento` e non direttamente ad `annullato`: fra il
+    clic e lo stop possono passare decine di secondi, e l'interfaccia deve
+    poter dire "sto fermando" invece di sembrare bloccata."""
+    with _lock:
+        fermo = _fermi.get(job_id)
+        attivo = _lavori.get(job_id, {}).get("attivo", False)
+    if fermo is None or not attivo:
+        return {"ok": False, "errore": t("gen.niente_da_annullare")}
+    fermo.set()
+    _aggiorna(job_id, fase="annullamento", dettaglio=t("gen.in_annullamento"))
+    return {"ok": True, "job": job_id}
