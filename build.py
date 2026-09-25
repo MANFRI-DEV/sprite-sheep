@@ -29,7 +29,30 @@ import zipfile
 from pathlib import Path
 
 RADICE = Path(__file__).resolve().parent
-GODOT = r"C:\GODOT\Godot_v4.6.1-stable_win64_console.exe"
+
+
+def _trova_godot() -> str:
+    """L'eseguibile di Godot 4.6.1. Prima era cablato su `C:\\GODOT\\`: su
+    un'altra macchina, o su Linux, la build non partiva nemmeno.
+
+    Ordine: variabile `SPRITESHEEP_GODOT`, poi `godot` nel PATH, poi il
+    percorso storico di questa macchina.
+    """
+    scelto = _os.environ.get("SPRITESHEEP_GODOT")
+    if scelto:
+        return scelto
+    for nome in ("godot", "godot4", "Godot_v4.6.1-stable_win64_console.exe"):
+        trovato = shutil.which(nome)
+        if trovato:
+            return trovato
+    storico = r"C:\GODOT\Godot_v4.6.1-stable_win64_console.exe"
+    if Path(storico).is_file():
+        return storico
+    raise SystemExit("Godot 4.6.1 non trovato: imposta SPRITESHEEP_GODOT "
+                     "con il percorso dell'eseguibile, o mettilo nel PATH.")
+
+
+GODOT = _trova_godot()
 PROGETTO = RADICE / "godot"
 DIST = RADICE / "dist"
 DIST_LINUX = RADICE / "dist_linux"
@@ -287,6 +310,25 @@ def costruisci_linux() -> None:
     print("   pronto: %s" % TARGZ.name)
 
 
+def _allinea_versione_exe() -> None:
+    """La versione scritta nelle proprieta' dell'eseguibile Windows.
+
+    Era rimasta `0.9.0.0` dai tempi della alpha 0.9 mentre il programma era
+    alla 0.0.5: chi guardava Proprieta' > Dettagli leggeva un numero
+    sbagliato. Si ricava da `config.VERSION` ("0.0.5-pre-alpha" -> "0.0.5.0")
+    e si corregge il preset se non torna.
+    """
+    numeri = re.match(r"(\d+)\.(\d+)\.(\d+)", VERSIONE)
+    atteso = "%s.%s.%s.0" % numeri.groups()
+    f = PROGETTO / "export_presets.cfg"
+    testo = f.read_text(encoding="utf-8")
+    nuovo = re.sub(r'(application/(?:file|product)_version=)"[^"]*"',
+                   r'\1"%s"' % atteso, testo)
+    if nuovo != testo:
+        f.write_text(nuovo, encoding="utf-8")
+        print("   export_presets.cfg: versione dell'eseguibile portata a %s" % atteso)
+
+
 def main() -> None:
     passo("controllo del progetto")
     testo = (PROGETTO / "project.godot").read_text(encoding="utf-8")
@@ -295,6 +337,7 @@ def main() -> None:
     if "Premium" in testo:
         raise SystemExit("project.godot contiene ancora un riferimento premium")
     print("   versione %s, nessun riferimento premium" % VERSIONE)
+    _allinea_versione_exe()
 
     passo("importazione delle risorse")
     esegui(GODOT, "--headless", "--path", str(PROGETTO), "--import")

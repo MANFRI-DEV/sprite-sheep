@@ -44,7 +44,10 @@ SHIFT = 8.0
 NEGATIVO = (
     "blurry, low quality, jpeg artifacts, watermark, text, letters, signature, "
     "extra limbs, deformed anatomy, changing design, flickering, "
-    "camera motion, zoom, pan, cut, scene change, multiple characters"
+    "camera motion, zoom, pan, cut, scene change, multiple characters, "
+    # Lo scontorno toglie il bianco: lampi e scie diventano buchi nella figura.
+    "white flash, glow, sparkles, speed lines, motion trails, "
+    "turning around, back view"
 )
 
 
@@ -86,6 +89,7 @@ def costruisci_grafo(immagine: str, prompt: str, lunghezza: int,
 
 class BackendComfyUIWan22(Backend):
     nome = "WAN 2.2 TI2V 5B via ComfyUI"
+    PASSI = 20
 
     MODELLI = {
         "diffusion": "wan2.2_ti2v_5B_fp16.safetensors",
@@ -110,7 +114,7 @@ class BackendComfyUIWan22(Backend):
 
         grafo, righe = costruisci_grafo(
             nome_in, prompt, lunghezza, larghezza, altezza,
-            int(seed) or int(time.time()), self.MODELLI)
+            int(seed) or int(time.time()), self.MODELLI, passi=self.PASSI)
 
         r = _post("/prompt", {"prompt": grafo})
         job = r.get("prompt_id")

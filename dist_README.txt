@@ -23,6 +23,17 @@ WHAT IS IN THE PACKAGE
 Keep the sidecar/ folder next to the executable: the application looks for it
 there.
 
+"Windows protected your PC" on first launch: the executable is not signed with
+a paid code-signing certificate, so SmartScreen does not know it yet. Click
+"More info", then "Run anyway". The source is public on GitHub if you prefer
+to check or build it yourself.
+
+Command line (no interface, same output and history as the app):
+  python sidecar/cli.py genera --sprite hero.png --prompt-file punch.txt
+  python sidecar/cli.py lotto set.json      several actions, weights loaded once
+  python sidecar/cli.py storico             past generations
+Run "python sidecar/cli.py --help" for all options. ComfyUI must be running.
+
 
 WHAT YOU NEED TO INSTALL
 ------------------------

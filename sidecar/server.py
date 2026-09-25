@@ -18,9 +18,13 @@ Rotte:
     POST /cerca_modelli -> collega pesi gia' presenti in una cartella
     POST /lingua     -> imposta la lingua dei messaggi (it/en)
     POST /piano      -> durata + frame -> lunghezza valida, griglia, indici
-    POST /genera     -> avvia la generazione (asincrona)
+    POST /genera     -> mette in coda un lavoro: un'azione, o `azioni: [...]`
+                        per piu' azioni dello stesso personaggio
     GET  /genera     -> stato di un lavoro (?job=...)
-    POST /annulla    -> ferma un lavoro in corso ({"job": ...})
+    GET  /coda       -> lavori in attesa o in corso, in ordine
+    POST /annulla    -> ferma un lavoro in corso o lo toglie dalla coda
+    GET  /storico    -> generazioni passate, dalla piu' recente
+    POST /rigenera   -> rifa una generazione passata con un altro seme
     GET  /comfyui    -> passi della procedura guidata di installazione
     POST /comfyui    -> imposta il percorso oppure avvia ComfyUI
 """
@@ -41,11 +45,12 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 import comfyui_setup
 import config
 import edizione
-import genera as genera_mod
+import coda
 import modelli
 import parametri
 import prompt as prompt_mod
 import scontorno
+import storico
 import testi
 
 
@@ -335,7 +340,11 @@ class Handler(BaseHTTPRequestHandler):
             from urllib.parse import parse_qs, urlparse
             q = parse_qs(urlparse(self.path).query)
             self._json(200, {"ok": True,
-                             "stato": genera_mod.stato((q.get("job") or [""])[0])})
+                             "stato": coda.stato((q.get("job") or [""])[0])})
+        elif self.path.split("?")[0] == "/coda":
+            self._json(200, {"ok": True, "lavori": coda.elenco()})
+        elif self.path.split("?")[0] == "/storico":
+            self._json(200, {"ok": True, "voci": storico.elenco()})
         else:
             self._json(404, {"ok": False, "errore": "rotta sconosciuta"})
 
@@ -434,13 +443,23 @@ class Handler(BaseHTTPRequestHandler):
                 self._json(200, {"ok": True, "piano": parametri.piano(
                     dati.get("modello", ""),
                     float(dati.get("durata_s", 2.0)),
-                    int(dati.get("n_frame", 25)))})
+                    int(dati.get("n_frame", 25)),
+                    str(dati.get("formato", parametri.FORMATO_PREDEFINITO)))})
 
             elif rotta == "/genera":
-                self._json(200, genera_mod.avvia(dati))
+                self._json(200, coda.avvia(dati))
 
             elif rotta == "/annulla":
-                self._json(200, genera_mod.annulla(dati.get("job", "")))
+                self._json(200, coda.annulla(dati.get("job", "")))
+
+            elif rotta == "/rigenera":
+                try:
+                    richiesta = storico.richiesta_da(
+                        str(dati.get("cartella", "")), int(dati.get("seed", 0) or 0))
+                except ValueError as e:
+                    self._json(200, {"ok": False, "errore": str(e)})
+                else:
+                    self._json(200, coda.avvia(richiesta))
 
             elif rotta == "/comfyui":
                 azione = dati.get("azione", "")

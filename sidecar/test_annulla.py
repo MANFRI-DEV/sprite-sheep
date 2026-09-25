@@ -25,7 +25,7 @@ QUI = Path(__file__).resolve().parent
 sys.path.insert(0, str(QUI))
 
 import config                                              # noqa: E402
-import genera                                              # noqa: E402
+import coda as lavori
 import modelli                                             # noqa: E402
 
 SPRITE = Path(r"E:\AI_Video\tmp\polizia\frame0.png")
@@ -54,7 +54,7 @@ def main() -> int:
         print("FastH3 non installato in %s" % config.MODELS_DIR)
         return 1
 
-    r = genera.avvia({
+    r = lavori.avvia({
         "modello": "minimax_h3_fast", "sprite": str(SPRITE),
         "prompt": "integrated_multimodal_description: a test.\n\n"
                   "overall_soundscape: Silent.\n\nnon_diegetic_music: None.",
@@ -71,7 +71,7 @@ def main() -> int:
     # prova meno, perche' li' ComfyUI non guarda l'interruttore.
     t0 = time.time()
     while time.time() - t0 < 900:
-        s = genera.stato(job)
+        s = lavori.stato(job)
         if "1/" in (s.get("dettaglio") or "") or "2/" in (s.get("dettaglio") or ""):
             break
         if not s.get("attivo", True):
@@ -82,12 +82,12 @@ def main() -> int:
           % (time.time() - t0, gpu()))
 
     t_clic = time.time()
-    print("annullo:", genera.annulla(job))
+    print("annullo:", lavori.annulla(job))
 
-    while genera.stato(job).get("attivo"):
+    while lavori.stato(job).get("attivo"):
         time.sleep(0.5)
     t_sidecar = time.time() - t_clic
-    fase = genera.stato(job).get("fase")
+    fase = lavori.stato(job).get("fase")
     print("sidecar: fase %s dopo %.1f s" % (fase, t_sidecar))
 
     # La GPU: si guarda per un minuto al massimo quando scende.

@@ -20,6 +20,28 @@ class Backend:
                avanzamento=None, fermo=None) -> list:
         raise NotImplementedError
 
+    def genera_lotto(self, sprite: str, voci: list[dict], larghezza: int,
+                     altezza: int, avanzamento=None, fermo=None) -> list[list]:
+        """Piu' azioni dello stesso sprite. `voci`: prompt, lunghezza, seed.
+
+        Qui una dopo l'altra: e' il ripiego corretto per ogni backend. Chi sa
+        condividere il caricamento dei pesi fra le azioni (il ponte H3) lo
+        sovrascrive, ed e' li' che sta il guadagno.
+        """
+        from testi import t
+        n = len(voci)
+        tutti = []
+        for i, v in enumerate(voci):
+            def sotto(p, dettaglio="", i=i):
+                if avanzamento is not None:
+                    avanzamento((i + p) / n, (t("gen.azione_di", i=i + 1, n=n)
+                                              + dettaglio) if n > 1 and dettaglio
+                                else dettaglio)
+            tutti.append(self.genera(sprite, v["prompt"], v["lunghezza"],
+                                     larghezza, altezza, v["seed"],
+                                     avanzamento=sotto, fermo=fermo))
+        return tutti
+
 
 def ottieni_backend(model_id: str, cartella: Path) -> Backend:
     if model_id.startswith("minimax_h3"):

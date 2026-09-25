@@ -248,6 +248,18 @@ TESTI: dict[str, dict[str, str]] = {
     "gen.nessuna_immagine": {
         "it": "ComfyUI non ha prodotto immagini entro il tempo massimo",
         "en": "ComfyUI produced no images within the time limit"},
+    "gen.azione_di": {
+        "it": "azione {i}/{n} · ",
+        "en": "action {i}/{n} · "},
+    "gen.in_coda": {
+        "it": "in coda, {n} lavori prima di questo",
+        "en": "queued, {n} jobs ahead"},
+    "gen.azioni_vuote": {
+        "it": "la coda non contiene azioni",
+        "en": "the queue has no actions"},
+    "gen.stesso_modello": {
+        "it": "le azioni di un lotto usano tutte lo stesso modello, sprite e formato",
+        "en": "all actions in a batch share the same model, sprite and aspect ratio"},
     "gen.annullato": {
         "it": "Generazione annullata",
         "en": "Generation cancelled"},

@@ -1,4 +1,4 @@
-[gd_scene load_steps=9 format=3 uid="uid://b1spritesheep0main"]
+[gd_scene load_steps=11 format=3 uid="uid://b1spritesheep0main"]
 
 [ext_resource type="Script" path="res://scripts/main.gd" id="1_main"]
 [ext_resource type="Script" path="res://scripts/sidecar_client.gd" id="2_sidecar"]
@@ -8,6 +8,8 @@
 [ext_resource type="PackedScene" path="res://scenes/pannello_genera.tscn" id="6_gen"]
 [ext_resource type="PackedScene" path="res://scenes/pannello_comfyui.tscn" id="7_cfy"]
 [ext_resource type="PackedScene" path="res://scenes/pannello_risultato.tscn" id="8_ris"]
+[ext_resource type="Script" path="res://scripts/finestra_cronologia.gd" id="9_cron"]
+[ext_resource type="Script" path="res://scripts/scelta_lingua.gd" id="10_lingua"]
 
 [node name="Main" type="Control"]
 layout_mode = 3
@@ -103,6 +105,14 @@ unique_name_in_owner = true
 custom_minimum_size = Vector2(120, 0)
 layout_mode = 2
 size_flags_vertical = 4
+script = ExtResource("10_lingua")
+
+[node name="CronologiaButton" type="Button" parent="Margine/Colonna/Barra/Riga"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_vertical = 4
+tooltip_text = "Generazioni passate: apri, confronta, rigenera con un altro seme"
+text = "Cronologia"
 
 [node name="ImpostazioniButton" type="Button" parent="Margine/Colonna/Barra/Riga"]
 unique_name_in_owner = true
@@ -150,6 +160,11 @@ layout_mode = 2
 [node name="PannelloRisultato" parent="Margine/Colonna/Corpo/ScorriDx/ColDx" instance=ExtResource("8_ris")]
 unique_name_in_owner = true
 layout_mode = 2
+
+[node name="FinestraCronologia" type="Window" parent="."]
+unique_name_in_owner = true
+visible = false
+script = ExtResource("9_cron")
 
 [node name="FinestraImpostazioni" type="Window" parent="."]
 unique_name_in_owner = true

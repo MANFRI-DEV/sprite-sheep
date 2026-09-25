@@ -217,6 +217,41 @@ def _scontorna_tinta(im: Image.Image, a: np.ndarray, tinta: np.ndarray,
     return Image.fromarray(fuori, "RGBA")
 
 
+def _via_tinta(colore, tinta: np.ndarray) -> bool:
+    """True se lo scontorno passa per la via a tinta, False se resta sulla
+    via storica per fondi chiari. Una funzione sola perche' la usano sia lo
+    scontorno sia `diagnosi`: il log deve dire la via che e' stata presa
+    davvero, non una ricostruzione che puo' divergere."""
+    esplicito = not (colore is None or colore == "" or colore == "auto")
+    return esplicito or tinta.min() <= 225
+
+
+def _esadecimale(rgb) -> str:
+    return "#%02x%02x%02x" % tuple(int(round(float(c))) for c in rgb)
+
+
+def diagnosi(im: Image.Image, colore: object = "auto",
+             tolleranza_tinta: int = 66, togli_spill: bool = True) -> dict:
+    """Cosa farebbe lo scontorno su questa immagine, senza farlo.
+
+    Serve al log di generazione: quando un'animazione esce con il fondo
+    rimasto o con il soggetto bucato, la prima cosa da sapere e' quale colore
+    e' stato tolto e per quale via.
+    """
+    a = np.asarray(im.convert("RGB")).astype(np.int16)
+    tinta = risolvi_colore(colore, a)
+    via_tinta = _via_tinta(colore, tinta)
+    misurata = aggancia_tinta(a, tinta) if via_tinta else tinta
+    return {
+        "colore": "auto" if colore in (None, "") else str(colore),
+        "via": "tinta" if via_tinta else "chiaro",
+        "tinta_richiesta": _esadecimale(tinta),
+        "tinta_misurata": _esadecimale(misurata),
+        "tolleranza_tinta": int(tolleranza_tinta),
+        "togli_spill": bool(togli_spill) and via_tinta,
+    }
+
+
 def scontorna_immagine(
     im: Image.Image,
     tolleranza: int = 225,
@@ -258,8 +293,7 @@ def scontorna_immagine(
     # green screen. Su "auto" si guarda il colore misurato: se e' quasi bianco
     # si resta sulla via collaudata, altrimenti si passa all'altra.
     tinta = risolvi_colore(colore, a)
-    esplicito = not (colore is None or colore == "" or colore == "auto")
-    if esplicito or tinta.min() <= 225:
+    if _via_tinta(colore, tinta):
         return _scontorna_tinta(im, a, tinta, float(tolleranza_tinta),
                                 togli_spill)
 

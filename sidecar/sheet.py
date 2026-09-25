@@ -15,34 +15,46 @@ from pathlib import Path
 from PIL import Image
 
 
-def _ridimensiona(im: Image.Image, lato: int) -> Image.Image:
-    if im.size == (lato, lato):
+def _dimensioni(cella: int | tuple[int, int]) -> tuple[int, int]:
+    """Un intero e' una cella quadrata, come prima dei formati; una coppia e'
+    larghezza x altezza."""
+    return (cella, cella) if isinstance(cella, int) else (int(cella[0]), int(cella[1]))
+
+
+def _ridimensiona(im: Image.Image, cella: int | tuple[int, int]) -> Image.Image:
+    cw, ch = _dimensioni(cella)
+    if im.size == (cw, ch):
         return im
     # ingrandimento a fattore intero = pixel art: NEAREST tiene i bordi netti
-    intero = lato % im.width == 0 and lato % im.height == 0 and lato > im.width
-    return im.resize((lato, lato), Image.NEAREST if intero else Image.LANCZOS)
+    intero = (cw % im.width == 0 and ch % im.height == 0
+              and cw // im.width == ch // im.height and cw > im.width)
+    return im.resize((cw, ch), Image.NEAREST if intero else Image.LANCZOS)
 
 
 def componi_sheet(frames: list[Image.Image], colonne: int, righe: int,
-                  lato_cella: int, dst: str | Path,
+                  cella: int | tuple[int, int], dst: str | Path,
                   sfondo: tuple | None = None) -> dict:
-    """Scrive lo sprite sheet. `sfondo=None` mantiene la trasparenza."""
+    """Scrive lo sprite sheet. `sfondo=None` mantiene la trasparenza.
+
+    `cella` e' il lato di una cella quadrata o la coppia larghezza, altezza."""
     dst = Path(dst)
     dst.parent.mkdir(parents=True, exist_ok=True)
-    tela = Image.new("RGBA", (colonne * lato_cella, righe * lato_cella),
+    cw, ch = _dimensioni(cella)
+    tela = Image.new("RGBA", (colonne * cw, righe * ch),
                      sfondo if sfondo else (0, 0, 0, 0))
     for i, f in enumerate(frames):
         if i >= colonne * righe:
             break
         r, c = divmod(i, colonne)
-        tela.alpha_composite(_ridimensiona(f.convert("RGBA"), lato_cella),
-                             (c * lato_cella, r * lato_cella))
+        tela.alpha_composite(_ridimensiona(f.convert("RGBA"), (cw, ch)),
+                             (c * cw, r * ch))
     if sfondo:
         tela.convert("RGB").save(dst)
     else:
         tela.save(dst)
     return {"percorso": str(dst), "larghezza": tela.width, "altezza": tela.height,
-            "colonne": colonne, "righe": righe, "celle": len(frames)}
+            "colonne": colonne, "righe": righe, "celle": len(frames),
+            "cella_larghezza": cw, "cella_altezza": ch}
 
 
 def _tavolozza_comune(frames: list[Image.Image]) -> Image.Image:
@@ -82,7 +94,8 @@ def _delay_centesimi(fps: float) -> tuple[int, float]:
 _INDICE_TRASPARENTE = 255
 
 
-def componi_gif(frames: list[Image.Image], fps: float, lato: int,
+def componi_gif(frames: list[Image.Image], fps: float,
+                lato: int | tuple[int, int],
                 dst: str | Path, sfondo: tuple | None = None) -> dict:
     """GIF in loop infinito.
 
@@ -113,7 +126,8 @@ def componi_gif(frames: list[Image.Image], fps: float, lato: int,
                        duration=cs * 10, loop=0,
                        transparency=_INDICE_TRASPARENTE, disposal=2)
     return {
-        "percorso": str(dst), "frame": len(piatti), "lato": lato,
+        "percorso": str(dst), "frame": len(piatti),
+        "larghezza": piatti[0].width, "altezza": piatti[0].height,
         "delay_ms": cs * 10, "fps_richiesto": round(fps, 2),
         "fps_reale": fps_reale,
         "durata_s": round(len(piatti) * cs / 100.0, 3),

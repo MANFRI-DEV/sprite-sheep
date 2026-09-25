@@ -140,11 +140,14 @@ def annulla_prompt(job: str) -> None:
     chiedersi dove sia: sbagliarsi costa una richiesta a vuoto, indovinare
     costerebbe una GPU che continua a macinare per niente.
 
-    `/interrupt` ferma **quello che sta girando**, qualunque sia. Qui e'
-    accettabile perche' la GPU la usa un lavoro alla volta, e quello e' il
-    nostro; il giorno che ci fosse una coda di piu' lavori andra' ristretto.
+    `/interrupt` riceve il `prompt_id`: ComfyUI ferma solo se sta girando
+    proprio quello. Senza, fermava qualunque lavoro in esecuzione — anche uno
+    lanciato dall'utente a mano nell'interfaccia di ComfyUI. Le versioni
+    vecchie ignorano il campo e fermano comunque: e' il comportamento di
+    prima, non peggio.
     """
-    for rotta, corpo in (("/queue", {"delete": [job]}), ("/interrupt", {})):
+    for rotta, corpo in (("/queue", {"delete": [job]}),
+                         ("/interrupt", {"prompt_id": job})):
         try:
             _post(rotta, corpo)
         except Exception:
@@ -252,10 +255,38 @@ def _scegli(classe: str, campo: str, atteso: str,
 
 def costruisci_grafo(immagine: str, prompt: str, lunghezza: int,
                      larghezza: int, altezza: int, seed: int,
-                     modelli: dict, passi: int = 20) -> dict:
-    """Grafo in formato API, soli nodi core."""
-    righe = math.ceil(lunghezza / COLONNE_STRIP)
-    return {
+                     modelli: dict, passi: int = 20) -> tuple[dict, int]:
+    """Grafo in formato API, soli nodi core. Un'azione sola."""
+    grafo, righe = costruisci_grafo_lotto(
+        immagine, [{"prompt": prompt, "lunghezza": lunghezza, "seed": seed}],
+        larghezza, altezza, modelli, passi)
+    return grafo, righe[0]
+
+
+def nodo(base: int, ramo: int) -> str:
+    """Id del nodo `base` nel ramo `ramo`. Il ramo 0 tiene gli id storici
+    (6, 8, 10...), cosi' il grafo di un'azione sola e' identico a prima; gli
+    altri salgono di cento per ramo (106, 206...)."""
+    return str(base + 100 * ramo)
+
+
+def costruisci_grafo_lotto(immagine: str, voci: list[dict], larghezza: int,
+                           altezza: int, modelli: dict,
+                           passi: int = 20) -> tuple[dict, list[int]]:
+    """Piu' azioni dello stesso personaggio in **un** prompt di ComfyUI.
+
+    Perche' uno solo: ComfyUI gira con `--cache-none` (senza, su questa
+    macchina cade), e con quella opzione non tiene nulla fra un prompt e
+    l'altro. Ogni animazione rileggeva dal disco pesi e text encoder: 372 s
+    di caricamento contro 218 di campionamento, pagati a ogni azione. Dentro
+    un prompt invece le uscite dei nodi restano vive finche' servono a valle
+    (`ExecutionList` le tiene per i consumatori), quindi i tre loader girano
+    una volta e tutti i rami li riusano.
+
+    Condivisi: pesi, text encoder, VAE, sprite, campionatore, scheduler.
+    Per ramo: prompt, lunghezza, seme, e tutto quello che ne dipende.
+    """
+    grafo = {
         "1": {"class_type": "UNETLoader", "inputs": {
             "unet_name": modelli["diffusion"], "weight_dtype": "default"}},
         "2": {"class_type": "CLIPLoader", "inputs": {
@@ -264,27 +295,62 @@ def costruisci_grafo(immagine: str, prompt: str, lunghezza: int,
         # Il VAE audio non entra nel grafo: il nodo H3 di ComfyUI espone un solo
         # ingresso `vae`, quello video, usato sia qui sia in decodifica.
         "5": {"class_type": "LoadImage", "inputs": {"image": immagine}},
-        "6": {"class_type": "MiniMaxH3ImageToVideo", "inputs": {
-            "clip": ["2", 0], "vae": ["3", 0],
-            "first_frame": ["5", 0], "prompt": prompt,
-            "width": larghezza, "height": altezza, "length": lunghezza}},
         "7": {"class_type": "KSamplerSelect", "inputs": {"sampler_name": "res_multistep"}},
-        "8": {"class_type": "BasicGuider", "inputs": {
-            "model": ["1", 0], "conditioning": ["6", 0]}},
         "9": {"class_type": "BasicScheduler", "inputs": {
             "model": ["1", 0], "scheduler": "simple", "steps": passi, "denoise": 1.0}},
-        "10": {"class_type": "RandomNoise", "inputs": {"noise_seed": int(seed)}},
-        "11": {"class_type": "SamplerCustomAdvanced", "inputs": {
-            "noise": ["10", 0], "guider": ["8", 0], "sampler": ["7", 0],
-            "sigmas": ["9", 0], "latent_image": ["6", 1]}},
-        "12": {"class_type": "VAEDecode", "inputs": {
-            "samples": ["11", 0], "vae": ["3", 0]}},
-        "13": {"class_type": "ImageGrid", "inputs": {
-            "images": ["12", 0], "columns": COLONNE_STRIP,
-            "cell_width": larghezza, "cell_height": altezza, "padding": 0}},
-        "14": {"class_type": "SaveImage", "inputs": {
-            "images": ["13", 0], "filename_prefix": "SpriteSheep/raw"}},
-    }, righe
+    }
+    righe = []
+    for r, v in enumerate(voci):
+        def n(base: int) -> str:
+            return nodo(base, r)
+        grafo.update({
+            n(6): {"class_type": "MiniMaxH3ImageToVideo", "inputs": {
+                "clip": ["2", 0], "vae": ["3", 0],
+                "first_frame": ["5", 0], "prompt": v["prompt"],
+                "width": larghezza, "height": altezza, "length": v["lunghezza"]}},
+            n(8): {"class_type": "BasicGuider", "inputs": {
+                "model": ["1", 0], "conditioning": [n(6), 0]}},
+            n(10): {"class_type": "RandomNoise", "inputs": {"noise_seed": int(v["seed"])}},
+            n(11): {"class_type": "SamplerCustomAdvanced", "inputs": {
+                "noise": [n(10), 0], "guider": [n(8), 0], "sampler": ["7", 0],
+                "sigmas": ["9", 0], "latent_image": [n(6), 1]}},
+            n(12): {"class_type": "VAEDecode", "inputs": {
+                "samples": [n(11), 0], "vae": ["3", 0]}},
+            n(13): {"class_type": "ImageGrid", "inputs": {
+                "images": [n(12), 0], "columns": COLONNE_STRIP,
+                "cell_width": larghezza, "cell_height": altezza, "padding": 0}},
+            n(14): {"class_type": "SaveImage", "inputs": {
+                "images": [n(13), 0], "filename_prefix": "SpriteSheep/raw"}},
+        })
+        righe.append(math.ceil(v["lunghezza"] / COLONNE_STRIP))
+    return grafo, righe
+
+
+## Nodi di ogni ramo, fra quelli di FASI: i restanti sono condivisi.
+_DEL_RAMO = (6, 8, 10, 11, 12, 13, 14)
+_FINE_CONDIVISI = 0.12
+
+
+def mappa_lotto(n: int) -> dict:
+    """FASI riscalata su `n` rami.
+
+    I nodi condivisi (i caricamenti) occupano lo stesso tratto iniziale di
+    un'azione sola; il resto si divide in parti uguali fra i rami, e dentro
+    ogni ramo i nodi tengono le proporzioni di FASI. La frase porta il numero
+    dell'azione: "genero i fotogrammi 3/8" non dice quale delle cinque.
+    """
+    if n <= 1:
+        return FASI
+    mappa = {k: v for k, v in FASI.items() if int(k) not in _DEL_RAMO}
+    quota = (1.0 - _FINE_CONDIVISI) / n
+    for r in range(n):
+        for base in _DEL_RAMO:
+            inizio, peso, chiave = FASI[str(base)]
+            rel = (inizio - _FINE_CONDIVISI) / (1.0 - _FINE_CONDIVISI)
+            mappa[nodo(base, r)] = (_FINE_CONDIVISI + (r + rel) * quota,
+                                    peso / (1.0 - _FINE_CONDIVISI) * quota,
+                                    chiave, (r + 1, n))
+    return mappa
 
 
 class BackendComfyUIH3(Backend):
@@ -331,21 +397,27 @@ class BackendComfyUIH3(Backend):
     def genera(self, sprite: str, prompt: str, lunghezza: int,
                larghezza: int, altezza: int, seed: int,
                avanzamento=None, fermo=None) -> list:
+        return self.genera_lotto(
+            sprite, [{"prompt": prompt, "lunghezza": lunghezza, "seed": seed}],
+            larghezza, altezza, avanzamento, fermo)[0]
+
+    def genera_lotto(self, sprite: str, voci: list[dict], larghezza: int,
+                     altezza: int, avanzamento=None, fermo=None) -> list[list]:
         if not comfy_disponibile():
             raise RuntimeError(t("gen.comfy_muta", url=COMFY))
 
         nome_in = carica_immagine(Path(sprite))
-
-        grafo, righe = costruisci_grafo(
-            nome_in, prompt, lunghezza, larghezza, altezza,
-            int(seed) or int(time.time()), self._modelli_disponibili(),
+        voci = [dict(v, seed=int(v["seed"]) or int(time.time()) + i)
+                for i, v in enumerate(voci)]
+        grafo, righe = costruisci_grafo_lotto(
+            nome_in, voci, larghezza, altezza, self._modelli_disponibili(),
             passi=self.PASSI)
 
         # Il client_id serve a due cose: ComfyUI indirizza a noi gli eventi del
         # WebSocket invece di mandarli a chiunque ascolti, e in quegli eventi
         # riconosciamo il nostro lavoro fra gli altri in coda.
         client_id = str(uuid.uuid4())
-        racconto = _Racconto(avanzamento)
+        racconto = _Racconto(avanzamento, mappa_lotto(len(voci)))
 
         with AscoltoComfy(COMFY, client_id, racconto.evento):
             r = _post("/prompt", {"prompt": grafo, "client_id": client_id})
@@ -353,20 +425,29 @@ class BackendComfyUIH3(Backend):
             if not job:
                 raise RuntimeError(t("gen.grafo_rifiutato", dettaglio=r))
             racconto.job = job
-            file_out = self._attendi(job, avanzamento, fermo)
+            uscite = self._attendi(job, fermo,
+                                   [nodo(14, i) for i in range(len(voci))])
 
-        strip = Image.open(io.BytesIO(scarica_uscita(file_out))).convert("RGBA")
-        cw, ch = strip.width // COLONNE_STRIP, strip.height // righe
-        frames = []
-        for i in range(lunghezza):
-            r_i, c_i = divmod(i, COLONNE_STRIP)
-            frames.append(strip.crop((c_i * cw, r_i * ch, (c_i + 1) * cw, (r_i + 1) * ch)))
+        tutti = []
+        for i, v in enumerate(voci):
+            strip = Image.open(io.BytesIO(
+                scarica_uscita(uscite[nodo(14, i)]))).convert("RGBA")
+            cw, ch = strip.width // COLONNE_STRIP, strip.height // righe[i]
+            frames = []
+            for k in range(v["lunghezza"]):
+                r_i, c_i = divmod(k, COLONNE_STRIP)
+                frames.append(strip.crop((c_i * cw, r_i * ch,
+                                          (c_i + 1) * cw, (r_i + 1) * ch)))
+            tutti.append(frames)
         if avanzamento:
             avanzamento(1.0, t("fase.pronto"))
-        return frames
+        return tutti
 
-    def _attendi(self, job: str, avanzamento, fermo=None) -> dict:
-        file_out = None
+    def _attendi(self, job: str, fermo=None,
+                 salvataggi: list[str] = ("14",)) -> dict:
+        """Aspetta la fine del prompt e restituisce, per ogni nodo di
+        salvataggio, l'immagine che ha scritto."""
+        uscite = {}
         # ---------------------------------------------------------------
         # Attesa a scadenza, non a numero di giri: ogni tentativo puo'
         # costare fino al proprio timeout, quindi contare le iterazioni non
@@ -409,14 +490,14 @@ class BackendComfyUIH3(Backend):
             voce = st[job]
             if voce.get("status", {}).get("status_str") == "error":
                 raise RuntimeError(t("gen.comfy_fallita", dettaglio=voce.get("status")))
-            for uscita in voce.get("outputs", {}).values():
+            for id_nodo, uscita in voce.get("outputs", {}).items():
                 for im in uscita.get("images", []):
-                    file_out = im
-            if file_out:
+                    uscite[id_nodo] = im
+            if all(n in uscite for n in salvataggi):
                 break
-        if not file_out:
+        if not all(n in uscite for n in salvataggi):
             raise RuntimeError(t("gen.nessuna_immagine"))
-        return file_out
+        return uscite
 
 
 class _Racconto:
@@ -428,10 +509,23 @@ class _Racconto:
     peggio di una ferma, perche' sembra che il lavoro si stia disfacendo.
     """
 
-    def __init__(self, avanzamento) -> None:
+    def __init__(self, avanzamento, mappa: dict = FASI) -> None:
         self.avanzamento = avanzamento
+        self.mappa = mappa
         self.job = None
         self._ultima = 0.0
+
+    def _fase(self, nodo: str, ripiego: tuple) -> tuple:
+        """(inizio, peso, frase) del nodo, con il numero dell'azione davanti
+        quando i rami sono piu' d'uno."""
+        voce = self.mappa.get(nodo)
+        if voce is None:
+            return ripiego
+        inizio, peso, chiave = voce[:3]
+        frase = t(chiave) if chiave else ""
+        if len(voce) > 3 and frase:
+            frase = t("gen.azione_di", i=voce[3][0], n=voce[3][1]) + frase
+        return inizio, peso, frase
 
     def _dire(self, frazione: float, frase: str) -> None:
         if self.avanzamento is None:
@@ -452,9 +546,9 @@ class _Racconto:
             nodo = d.get("node")
             if nodo is None:
                 return
-            inizio, _peso, chiave = FASI.get(str(nodo), (self._ultima, 0.0, ""))
-            if chiave:
-                self._dire(inizio, t(chiave))
+            inizio, _peso, frase = self._fase(str(nodo), (self._ultima, 0.0, ""))
+            if frase:
+                self._dire(inizio, frase)
 
         elif tipo == "progress":
             # Forma vecchia: un nodo per messaggio.
@@ -479,19 +573,20 @@ class _Racconto:
             # non parte il campionamento, che e' proprio il caso della seconda
             # generazione di fila.
             for nodo in d.get("nodes") or []:
-                inizio, peso, _f = FASI.get(str(nodo), (0.0, 0.0, ""))
+                inizio, peso, _f = self._fase(str(nodo), (0.0, 0.0, ""))
                 self._dire(inizio + peso, t("fase.cache"))
 
     def _passo(self, nodo: str, d: dict) -> None:
         massimo = float(d.get("max") or 0)
         if massimo <= 0:
             return
-        inizio, peso, chiave = FASI.get(nodo, (self._ultima, 0.0, "fase.elaboro"))
+        inizio, peso, frase = self._fase(
+            nodo, (self._ultima, 0.0, t("fase.elaboro")))
         valore = float(d.get("value") or 0)
         quota = min(1.0, valore / massimo)
         # Il conteggio si mostra solo quando ha piu' di un passo: "1/1" per un
         # nodo che o e' fermo o e' finito non dice niente a nessuno.
-        frase = t(chiave or "fase.elaboro")
+        frase = frase or t("fase.elaboro")
         if massimo > 1:
             frase = "%s %d/%d" % (frase, int(valore), int(massimo))
         self._dire(inizio + peso * quota, frase)

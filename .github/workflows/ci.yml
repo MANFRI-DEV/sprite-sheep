@@ -1,0 +1,48 @@
+name: CI
+
+# Test senza GPU: sidecar (logica, sicurezza, coda, scontorno) su Linux e
+# Windows, e scene Godot in headless. La generazione vera ha bisogno di
+# ComfyUI e di una GPU, e resta una prova manuale.
+
+on:
+  push:
+    branches: [main, "release/**"]
+  pull_request:
+
+jobs:
+  sidecar:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install pillow numpy scipy
+      - name: Test del sidecar
+        shell: bash
+        run: |
+          for t in test_parametri test_scontorno test_rapporto test_coda test_gpu test_sicurezza; do
+            echo "== $t"
+            python sidecar/$t.py
+          done
+
+  godot:
+    runs-on: ubuntu-latest
+    env:
+      GODOT_VERSION: 4.6.1
+    steps:
+      - uses: actions/checkout@v4
+      - name: Scarica Godot
+        run: |
+          curl -sSL -o godot.zip \
+            "https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}-stable/Godot_v${GODOT_VERSION}-stable_linux.x86_64.zip"
+          unzip -q godot.zip
+          mv "Godot_v${GODOT_VERSION}-stable_linux.x86_64" godot-bin
+      - name: Importa il progetto
+        run: ./godot-bin --headless --path godot --import
+      - name: Prova delle scene
+        run: ./godot-bin --headless --path godot --script res://test_scene.gd
