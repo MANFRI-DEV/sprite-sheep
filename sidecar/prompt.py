@@ -29,6 +29,18 @@ IDENTITA = ("The subject's design, proportions, colors and line weight remain "
             "absolutely identical in every single frame. Anatomy stays correct "
             "throughout: no extra or missing parts.")
 
+## Senza, in un montante il modello gira il personaggio di spalle a meta'
+## clip: visto nell'uppercut della poliziotta, corretto a mano nel prompt.
+ORIENTAMENTO = ("The subject keeps facing the same side of the frame as in the "
+                "first frame for the whole clip, with the same side of the body "
+                "turned toward the viewer and the face visible in every frame.")
+
+## Lampi, scie e bagliori bianchi li mangia lo scontorno, e bucano la figura.
+## Detto in positivo: nominarli, anche per escluderli, li fa disegnare.
+SOLO_FIGURA = ("The frame contains only the subject and the flat background; "
+               "the motion is shown entirely through the subject's own body, "
+               "with clean, solid edges.")
+
 CHIUSURA_CICLO = ("The final frame returns to exactly the same pose, position "
                   "and framing as the very first frame, so the cycle loops "
                   "seamlessly.")
@@ -72,7 +84,7 @@ def _componi_h3(campi: dict) -> str:
     testa = f"{INTESTAZIONE} {soggetto}"
     if stile:
         testa += f" {stile}"
-    parti = [testa, IDENTITA]
+    parti = [testa, IDENTITA, ORIENTAMENTO, SOLO_FIGURA]
 
     if sfondo:
         parti.append(sfondo)
@@ -117,6 +129,8 @@ def _componi_wan(campi: dict) -> str:
     if camera:
         frasi.append(camera.rstrip(".") + ".")
     frasi.append(IDENTITA)
+    frasi.append(ORIENTAMENTO)
+    frasi.append(SOLO_FIGURA)
     if ciclico and testi:
         frasi.append(CHIUSURA_CICLO)
     return " ".join(frasi)

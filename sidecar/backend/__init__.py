@@ -17,16 +17,45 @@ class Backend:
 
     def genera(self, sprite: str, prompt: str, lunghezza: int,
                larghezza: int, altezza: int, seed: int,
-               avanzamento=None) -> list:
+               avanzamento=None, fermo=None) -> list:
         raise NotImplementedError
+
+    def genera_lotto(self, sprite: str, voci: list[dict], larghezza: int,
+                     altezza: int, avanzamento=None, fermo=None) -> list[list]:
+        """Piu' azioni dello stesso sprite. `voci`: prompt, lunghezza, seed.
+
+        Qui una dopo l'altra: e' il ripiego corretto per ogni backend. Chi sa
+        condividere il caricamento dei pesi fra le azioni (il ponte H3) lo
+        sovrascrive, ed e' li' che sta il guadagno.
+        """
+        from testi import t
+        n = len(voci)
+        tutti = []
+        for i, v in enumerate(voci):
+            def sotto(p, dettaglio="", i=i):
+                if avanzamento is not None:
+                    avanzamento((i + p) / n, (t("gen.azione_di", i=i + 1, n=n)
+                                              + dettaglio) if n > 1 and dettaglio
+                                else dettaglio)
+            tutti.append(self.genera(sprite, v["prompt"], v["lunghezza"],
+                                     larghezza, altezza, v["seed"],
+                                     avanzamento=sotto, fermo=fermo))
+        return tutti
 
 
 def ottieni_backend(model_id: str, cartella: Path) -> Backend:
     if model_id.startswith("minimax_h3"):
         # Finche' il sampler nativo non c'e', se una ComfyUI e' in ascolto
         # si usa quella: meglio un ponte funzionante di un errore.
-        from .comfyui_bridge import BackendComfyUIH3, comfy_disponibile
+        from .comfyui_bridge import (BackendComfyUIH3, BackendComfyUIH3Fast,
+                                     comfy_disponibile)
         if comfy_disponibile():
+            # FastH3 e' lo stesso modello distillato: cambia il checkpoint e il
+            # numero di passi, non il grafo. Senza questa riga si genererebbe
+            # con il modello pieno **senza errori** e senza che nessuno se ne
+            # accorga, se non dal tempo.
+            if model_id == "minimax_h3_fast":
+                return BackendComfyUIH3Fast(cartella)
             return BackendComfyUIH3(cartella)
         from .minimax_h3 import BackendMiniMaxH3
         return BackendMiniMaxH3(cartella)

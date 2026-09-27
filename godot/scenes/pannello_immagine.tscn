@@ -41,7 +41,7 @@ stretch_mode = 5
 unique_name_in_owner = true
 layout_mode = 2
 text = "nessun file scelto — o trascina qui"
-theme_override_colors/font_color = Color(0.6, 0.65, 0.72, 1)
+theme_override_colors/font_color = Color(0.776, 0.8, 0.847, 1)
 text_overrun_behavior = 3
 
 [node name="SfogliaButton" type="Button" parent="Margine/Colonna"]

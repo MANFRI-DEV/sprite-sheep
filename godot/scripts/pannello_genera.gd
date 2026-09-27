@@ -18,6 +18,9 @@ signal edizione_cambiata(stato: Dictionary)
 @onready var _durata: HSlider = %DurataSlider
 @onready var _durata_lbl: Label = %DurataLabel
 @onready var _frame: SpinBox = %FrameSpin
+@onready var _formato: OptionButton = %FormatoOption
+@onready var _margine: OptionButton = %MargineOption
+@onready var _azioni: VBoxContainer = %ListaAzioni
 @onready var _piano_lbl: RichTextLabel = %PianoLabel
 @onready var _btn: Button = %GeneraButton
 @onready var _barra: ProgressBar = %Barra
@@ -34,6 +37,9 @@ var _sidecar: Node
 var _principale: Control
 var _job := ""
 var _timer: Timer
+## Annulla gia' chiesto, in attesa che la GPU si fermi davvero: fra il clic e
+## lo stop possono passare decine di secondi, e un secondo clic non serve.
+var _annullando := false
 ## Testo completo dell'ultimo errore, quello che finisce negli appunti.
 var _rapporto := ""
 
@@ -52,7 +58,10 @@ func imposta(sidecar: Node, principale: Control) -> void:
 func _ready() -> void:
 	_durata.value_changed.connect(_su_durata)
 	_frame.value_changed.connect(func(_v: float) -> void: _ricalcola())
-	_btn.pressed.connect(_genera)
+	_formato.item_selected.connect(func(_i: int) -> void: _ricalcola())
+	_azioni.aggiunta_richiesta.connect(_aggiungi_azione)
+	_azioni.cambiata.connect(_aggiorna_bottone)
+	_btn.pressed.connect(_su_bottone)
 	Tema.accenta(_btn)
 	_btn_copia.pressed.connect(_copia_errore)
 	_btn_traccia.pressed.connect(func() -> void:
@@ -77,16 +86,11 @@ const MEMORIA_SCONTORNO := "user://scontorno.cfg"
 
 
 func _scontorno_ricordato() -> bool:
-	if not FileAccess.file_exists(MEMORIA_SCONTORNO):
-		return true
-	var f := FileAccess.open(MEMORIA_SCONTORNO, FileAccess.READ)
-	return true if f == null else f.get_as_text().strip_edges() != "0"
+	return Memoria.leggi(MEMORIA_SCONTORNO, "1") != "0"
 
 
 func _su_scontorno(attivo: bool) -> void:
-	var f := FileAccess.open(MEMORIA_SCONTORNO, FileAccess.WRITE)
-	if f != null:
-		f.store_string("1" if attivo else "0")
+	Memoria.scrivi(MEMORIA_SCONTORNO, "1" if attivo else "0")
 	_scontorna_nota.text = "" if attivo else tr(
 		"Senza, lo sprite sheet esce con lo sfondo pieno del prompt.")
 
@@ -103,7 +107,7 @@ func _ricalcola() -> void:
 		return
 	var modello: String = _principale.modello_attivo
 	if modello == "":
-		_piano_lbl.text = "[color=#8a93a3]%s[/color]" % tr("Scegli un modello installato.")
+		_piano_lbl.text = "[color=#c6ccd8]%s[/color]" % tr("Scegli un modello installato.")
 		_aggiorna_bottone()
 		return
 
@@ -111,6 +115,7 @@ func _ricalcola() -> void:
 		"modello": modello,
 		"durata_s": _durata.value,
 		"n_frame": int(_frame.value),
+		"formato": _formato.valore(),
 	})
 	if not r.get("ok", false):
 		_piano_lbl.text = "[color=#e06060]%s[/color]" % r.get("errore", "")
@@ -119,25 +124,7 @@ func _ricalcola() -> void:
 	var p: Dictionary = r.get("piano", {})
 	tempi_clip.emit(float(p.get("durata_effettiva_s", _durata.value)),
 		float(p.get("fine_utile_s", _durata.value * 0.85)))
-	var righe := [
-		tr("Clip: [b]%d[/b] frame a %d fps → [b]%.2f s[/b]")
-			% [int(p.get("lunghezza", 0)), int(p.get("fps", 0)), float(p.get("durata_effettiva_s", 0))],
-		tr("Foglio: [b]%d x %d[/b], %d celle usate")
-			% [int(p.get("colonne", 0)), int(p.get("righe", 0)), int(p.get("n_frame", 0))],
-		tr("Riproduzione: [b]%.1f fps[/b]") % float(p.get("fps_riproduzione", 0)),
-	]
-	if int(p.get("celle_vuote", 0)) > 0:
-		righe.append("[color=#e0a040]%s[/color]" % tr("%d celle resteranno vuote")
-			% int(p["celle_vuote"]))
-	if p.get("troncata", false):
-		righe.append("[color=#e0a040]%s[/color]"
-			% (tr("Durata ridotta a %.2f s: e' il massimo del modello.")
-				% float(p.get("durata_effettiva_s", 0))))
-	if abs(float(p.get("durata_effettiva_s", 0)) - _durata.value) > 0.15:
-		righe.append("[color=#8a93a3]%s[/color]" % tr(
-			"La durata reale differisce da quella chiesta: il modello accetta solo certe lunghezze."))
-
-	_piano_lbl.text = "\n".join(righe)
+	_piano_lbl.text = TestiGenerazione.piano(p, _durata.value)
 	_aggiorna_bottone()
 
 
@@ -145,37 +132,101 @@ func _aggiorna_bottone() -> void:
 	if _principale == null:
 		return
 	var pronto: bool = _principale.pronto_per_generare() and _job == ""
-	_btn.disabled = not pronto
+	_azioni.puo_aggiungere(pronto)
+	var in_coda: int = _azioni.azioni().size()
+	# Durante la generazione il pulsante non si spegne: diventa Annulla.
+	# Prima restava grigio con scritto "in corso" per dieci minuti, e l'unico
+	# modo di fermare un prompt sbagliato era chiudere il programma.
 	if _job != "":
-		_btn.text = tr("Generazione in corso...")
-	elif pronto:
+		_btn.disabled = _annullando
+		_btn.text = tr("Annullamento...") if _annullando else tr("Annulla")
+		return
+	# Con azioni in coda basta sprite e modello: i prompt sono gia' nelle voci.
+	if in_coda > 0:
+		_btn.disabled = _job != "" or not _principale.motore_pronto \
+			or _principale.sprite_scelto == "" or _principale.modello_attivo == ""
+		_btn.text = tr("Genera %d azioni (pesi caricati una volta)") % in_coda
+		return
+	_btn.disabled = not pronto
+	if pronto:
 		_btn.text = tr("Genera sprite sheet e GIF")
 	else:
 		_btn.text = tr("Servono sprite, prompt valido e modello")
 
 
+func _su_bottone() -> void:
+	if _job == "":
+		_genera()
+	else:
+		_annulla()
+
+
+func _annulla() -> void:
+	if _sidecar == null or _annullando:
+		return
+	_annullando = true
+	_aggiorna_bottone()
+	var r: Dictionary = await _sidecar.post_json("/annulla", {"job": _job})
+	# Se il lavoro era gia' finito nel frattempo, il sidecar lo dice e il
+	# prossimo giro del timer mostrera' l'esito vero: niente da fare qui.
+	if not r.get("ok", false):
+		_annullando = false
+		_aggiorna_bottone()
+
+
+## L'azione preparata adesso: nome, prompt, durata, frame.
+func _azione_corrente() -> Dictionary:
+	return {
+		"nome": _nome.text.strip_edges() if _nome.text.strip_edges() != "" else "animazione",
+		"prompt": _principale.prompt_testo,
+		"durata_s": _durata.value,
+		"n_frame": int(_frame.value),
+	}
+
+
+func _aggiungi_azione() -> void:
+	if _principale != null and _principale.pronto_per_generare():
+		_azioni.aggiungi(_azione_corrente())
+
+
 func _genera() -> void:
 	if _sidecar == null or _principale == null:
 		return
-	_esito.text = ""
-	_barra.value = 0
-	_nascondi_errore()
-	risultato_pulito.emit()
-	var r: Dictionary = await _sidecar.post_json("/genera", {
+	var corpo := {
 		"modello": _principale.modello_attivo,
 		"sprite": _principale.sprite_scelto,
-		"prompt": _principale.prompt_testo,
-		"nome": _nome.text.strip_edges() if _nome.text.strip_edges() != "" else "animazione",
-		"durata_s": _durata.value,
-		"n_frame": int(_frame.value),
+		"formato": _formato.valore(),
+		"margine": _margine.valore(),
 		"scontorna": _scontorna.button_pressed,
-	})
+		"colore_sfondo": _principale.colore_sfondo(),
+	}
+	var coda: Array[Dictionary] = _azioni.azioni()
+	if coda.is_empty():
+		corpo.merge(_azione_corrente())
+	else:
+		corpo["azioni"] = coda
+	_nascondi_errore()
+	var r: Dictionary = await _sidecar.post_json("/genera", corpo)
 	if r.has("edizione"):
 		edizione_cambiata.emit(r["edizione"])
 	if not r.get("ok", false):
 		_mostra_errore({"errore": r.get("errore", tr("avvio fallito"))})
 		return
-	_job = str(r.get("job", ""))
+	if not coda.is_empty():
+		_azioni.svuota()
+	segui(str(r.get("job", "")))
+
+
+## Segue un lavoro gia' messo in coda, anche da fuori (la cronologia che
+## rigenera): barra, cronometro, Annulla, risultato.
+func segui(job: String) -> void:
+	if job == "":
+		return
+	_esito.text = ""
+	_barra.value = 0
+	_nascondi_errore()
+	risultato_pulito.emit()
+	_job = job
 	_inizio_ms = Time.get_ticks_msec()
 	_aggiorna_bottone()
 	_timer.start()
@@ -189,23 +240,30 @@ func _controlla_job() -> void:
 	_barra.value = float(s.get("percentuale", 0)) * 100.0
 
 	if s.get("attivo", true):
-		_esito.text = "[color=#8a93a3]%s...[/color] [color=#5ccf7e]%s[/color]" % [
-			str(s.get("fase", "in corso")), _cronometro()]
+		_esito.text = TestiGenerazione.in_corso(s, _trascorso_s())
 		return
 
 	_timer.stop()
 	_durata_ultima = _trascorso_s()
 	_job = ""
+	_annullando = false
 	_aggiorna_bottone()
+	# Dieci minuti di attesa: l'utente e' altrove. Se la finestra non ha il
+	# fuoco, la barra delle applicazioni lampeggia finche' non ci torna.
+	if not get_window().has_focus():
+		DisplayServer.window_request_attention()
+
+	# Annullato non e' un errore: niente rosso, niente traccia da copiare.
+	if str(s.get("fase", "")) == "annullato":
+		_barra.value = 0
+		_esito.text = TestiGenerazione.annullato(_durata_ultima)
+		return
 
 	if s.get("errore", null) != null:
 		_mostra_errore(s)
 		return
 
-	var sfondo := tr("Sfondo dei frame rimosso") if s.get("scontornato", true) \
-		else tr("Sfondo dei frame conservato")
-	_esito.text = "[color=#5ccf7e]%s[/color] [color=#e2e6ee]%s[/color] [color=#8a93a3]· %s[/color]\n[color=#7f8798]%s[/color]" % [
-		tr("Fatto."), _formatta(_durata_ultima), sfondo, str(s.get("cartella", ""))]
+	_esito.text = TestiGenerazione.fatto(s, _durata_ultima)
 	if s.has("edizione"):
 		edizione_cambiata.emit(s["edizione"])
 	risultato_pronto.emit(s)
@@ -215,48 +273,19 @@ func _trascorso_s() -> float:
 	return 0.0 if _inizio_ms == 0 else (Time.get_ticks_msec() - _inizio_ms) / 1000.0
 
 
-func _cronometro() -> String:
-	return _formatta(_trascorso_s())
-
-
-## Sotto il minuto i secondi bastano; sopra, "6:12" si legge a colpo d'occhio
-## meglio di "372 s".
-func _formatta(secondi: float) -> String:
-	if secondi < 60.0:
-		return "%.0fs" % secondi
-	return "%d:%02d" % [int(secondi) / 60, int(secondi) % 60]
-
-
 ## Quanto e' durata l'ultima generazione, per chi la vuole altrove.
 func durata_ultima_s() -> float:
 	return _durata_ultima
 
 
-## Raccoglie tutto il contesto utile in un testo unico, incollabile dov'e' che
-## serve: messaggio, traccia Python, parametri della richiesta, versione.
+## Messaggio in rosso, e il rapporto completo pronto da copiare.
 func _mostra_errore(s: Dictionary) -> void:
-	var messaggio: String = str(s.get("errore", tr("errore sconosciuto")))
-	_esito.text = "[color=#e06060]%s[/color]" % messaggio
-
-	var righe := [tr("Sprite Sheep — errore di generazione"),
-		"quando: %s" % Time.get_datetime_string_from_system(),
-		"", messaggio]
-	var req: Dictionary = s.get("richiesta", {})
-	if not req.is_empty():
-		righe.append("")
-		righe.append(tr("richiesta") + ":")
-		for k in req:
-			righe.append("  %s: %s" % [k, req[k]])
-	var tb: String = str(s.get("traccia", ""))
-	if tb != "":
-		righe.append("")
-		righe.append(tb)
-	_rapporto = "\n".join(righe)
-
+	_esito.text = "[color=#e06060]%s[/color]" % str(s.get("errore", tr("errore sconosciuto")))
+	_rapporto = TestiGenerazione.rapporto_errore(s)
 	_traccia.text = _rapporto
 	_traccia.visible = false
 	_btn_traccia.text = tr("Mostra traccia")
-	_btn_traccia.visible = tb != ""
+	_btn_traccia.visible = str(s.get("traccia", "")) != ""
 	_riga_errore.visible = true
 	_btn_copia.text = tr("Copia errore")
 

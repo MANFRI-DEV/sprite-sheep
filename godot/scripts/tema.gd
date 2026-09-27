@@ -14,9 +14,20 @@ const CAMPO      := Color("232733")   # caselle di testo
 const BORDO      := Color("2b3039")
 const BORDO_VIVO := Color("3a414f")   # bordo al passaggio del mouse
 
-const TESTO      := Color("e2e6ee")
-const TENUE      := Color("7f8798")   # etichette, note
-const SPENTO     := Color("545b6a")   # comandi disabilitati
+# Il testo e' **bianco**. Era un grigio chiarissimo (e2e6ee), che su un fondo
+# ardesia si legge bene su un monitor buono e sparisce su un portatile con la
+# luminosita' a meta'. Le note secondarie erano piu' scure ancora (7f8798) ed
+# erano la parte peggiore: spiegano cosa fa un comando, e chi ha davvero
+# bisogno di leggerle e' chi non conosce il programma.
+#
+# La gerarchia resta — principale, secondario, spento — ma tutta piu' in alto.
+const TESTO      := Color("ffffff")
+const TENUE      := Color("c6ccd8")   # etichette, note
+const SPENTO     := Color("8c94a4")   # comandi disabilitati
+
+## Le stesse tinte per il BBCode dei RichTextLabel, che vuole il testo esadecimale.
+const TESTO_HEX  := "#ffffff"
+const TENUE_HEX  := "#c6ccd8"
 
 const ACCENTO    := Color("5ccf7e")
 const ACCENTO_SU := Color("6fdc8f")

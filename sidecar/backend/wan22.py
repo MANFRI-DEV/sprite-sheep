@@ -17,7 +17,7 @@ class BackendWan22(Backend):
 
     def genera(self, sprite: str, prompt: str, lunghezza: int,
                larghezza: int, altezza: int, seed: int,
-               avanzamento=None) -> list:
+               avanzamento=None, fermo=None) -> list:
         if (lunghezza - 1) % 4:
             raise ValueError(
                 "WAN richiede lunghezze 4n+1: ricevuto %d" % lunghezza)

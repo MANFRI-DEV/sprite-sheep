@@ -1,4 +1,4 @@
-# Sprite Sheep 0.0.4-pre-alpha
+# Sprite Sheep 0.0.5-pre-alpha
 #
 # You do NOT need to install anything: the package carries its own Python in
 # python\, with these libraries already inside.

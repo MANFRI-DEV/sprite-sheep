@@ -69,6 +69,12 @@ def main() -> int:
         "MiniMax H3": (b.costruisci_grafo(
             "sprite.png", "prompt di prova", 56, 256, 256, 1234,
             b.BackendComfyUIH3.MODELLI)[0], "5"),
+        # Tre azioni in un prompt: loader condivisi, rami a 6/106/206...
+        "MiniMax H3 lotto": (b.costruisci_grafo_lotto(
+            "sprite.png", [{"prompt": "uno", "lunghezza": 56, "seed": 1},
+                           {"prompt": "due", "lunghezza": 22, "seed": 2},
+                           {"prompt": "tre", "lunghezza": 73, "seed": 3}],
+            256, 256, b.BackendComfyUIH3.MODELLI)[0], "5"),
         "WAN 2.2": (w.costruisci_grafo(
             "sprite.png", "prompt di prova", 49, 256, 256, 1234,
             w.BackendComfyUIWan22.MODELLI)[0], "4"),

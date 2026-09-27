@@ -153,6 +153,13 @@ TESTI: dict[str, dict[str, str]] = {
     "mod.h3.descrizione": {
         "it": "Qualita' alta, ma pesante: ~40 GB e generazioni lente su 8 GB.",
         "en": "High quality but heavy: ~40 GB and slow generation on 8 GB."},
+    "mod.h3fast.descrizione": {
+        "it": ("Lo stesso H3 distillato: 8 passi invece di 20, molto piu' "
+               "veloce. Movimento difficile e dettaglio fine restano sotto. "
+               "Se hai gia' H3, servono solo i 22 GB del checkpoint."),
+        "en": ("The same H3, distilled: 8 steps instead of 20, much faster. "
+               "Hard motion and fine detail stay below the full model. "
+               "If you already have H3, only the 22 GB checkpoint is missing.")},
     "mod.err.sconosciuto": {
         "it": "modello sconosciuto",
         "en": "unknown model"},
@@ -241,6 +248,27 @@ TESTI: dict[str, dict[str, str]] = {
     "gen.nessuna_immagine": {
         "it": "ComfyUI non ha prodotto immagini entro il tempo massimo",
         "en": "ComfyUI produced no images within the time limit"},
+    "gen.azione_di": {
+        "it": "azione {i}/{n} · ",
+        "en": "action {i}/{n} · "},
+    "gen.in_coda": {
+        "it": "in coda, {n} lavori prima di questo",
+        "en": "queued, {n} jobs ahead"},
+    "gen.azioni_vuote": {
+        "it": "la coda non contiene azioni",
+        "en": "the queue has no actions"},
+    "gen.stesso_modello": {
+        "it": "le azioni di un lotto usano tutte lo stesso modello, sprite e formato",
+        "en": "all actions in a batch share the same model, sprite and aspect ratio"},
+    "gen.annullato": {
+        "it": "Generazione annullata",
+        "en": "Generation cancelled"},
+    "gen.in_annullamento": {
+        "it": "sto fermando la GPU, pochi secondi...",
+        "en": "stopping the GPU, a few seconds..."},
+    "gen.niente_da_annullare": {
+        "it": "Nessuna generazione in corso da annullare",
+        "en": "No generation in progress to cancel"},
     "gen.lunghezza_wan": {
         "it": "WAN richiede lunghezze 4n+1: ricevuto {n}",
         "en": "WAN requires 4n+1 lengths: got {n}"},
@@ -305,4 +333,38 @@ TESTI: dict[str, dict[str, str]] = {
     "lic.non_parere_legale": {
         "it": "Questo riassunto non e' un parere legale: leggi il testo completo.",
         "en": "This summary is not legal advice: read the full text."},
+
+    # --- avanzamento: cosa sta facendo ComfyUI adesso ------------------------
+    # Frasi in prima persona e al presente: la barra racconta il lavoro mentre
+    # succede, e "carico il modello" si legge piu' in fretta di "caricamento
+    # del modello in corso". Restano corte perche' stanno su una riga sola.
+    "fase.unet": {
+        "it": "carico il modello di diffusione",
+        "en": "loading the diffusion model"},
+    "fase.clip": {
+        "it": "carico il text encoder",
+        "en": "loading the text encoder"},
+    "fase.vae": {"it": "carico il VAE", "en": "loading the VAE"},
+    "fase.sprite": {"it": "leggo lo sprite", "en": "reading the sprite"},
+    "fase.condizionamento": {
+        "it": "preparo il condizionamento",
+        "en": "preparing the conditioning"},
+    "fase.sampler": {"it": "preparo il sampler", "en": "preparing the sampler"},
+    "fase.rumore": {
+        "it": "preparo il rumore iniziale",
+        "en": "preparing the initial noise"},
+    "fase.campiono": {"it": "genero i fotogrammi", "en": "generating frames"},
+    "fase.decodifico": {
+        "it": "decodifico il video (la GPU e' al massimo)",
+        "en": "decoding the video (the GPU is maxed out)"},
+    "fase.striscia": {"it": "compongo la striscia", "en": "assembling the strip"},
+    "fase.salvo": {"it": "salvo l'uscita", "en": "saving the output"},
+    "fase.elaboro": {"it": "elaboro", "en": "processing"},
+    "fase.cache": {
+        "it": "riuso un risultato gia' in memoria",
+        "en": "reusing a cached result"},
+    "fase.pronto": {"it": "fotogrammi pronti", "en": "frames ready"},
+    "fase.coda": {
+        "it": "in coda: {n} lavori prima di questo",
+        "en": "queued: {n} jobs ahead of this one"},
 }

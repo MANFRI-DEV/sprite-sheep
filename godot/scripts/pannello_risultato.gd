@@ -21,6 +21,12 @@ var _i := 0
 var _accumulo := 0.0
 var _in_pausa := false
 var _cartella := ""
+var _log := ""
+## Creato da codice e non nella scena: e' un fratello di "Apri cartella" e
+## vive o muore con lui, quindi basta metterlo subito dopo.
+var _btn_log := Button.new()
+## La riga discreta di Ko-fi sotto il risultato: quando mostrarla lo decide lei.
+var _invito := InvitoKofi.new()
 
 
 func _ready() -> void:
@@ -30,6 +36,13 @@ func _ready() -> void:
 	_btn_cartella.pressed.connect(func() -> void:
 		if _cartella != "":
 			OS.shell_open(_cartella))
+	_btn_log.text = tr("Apri log")
+	_btn_log.tooltip_text = tr("Parametri della generazione: prompt, modello, seed, tempi, scontorno")
+	_btn_log.pressed.connect(func() -> void:
+		if _log != "":
+			OS.shell_open(_log))
+	_btn_cartella.add_sibling(_btn_log)
+	_contenuto.add_child(_invito)
 	_btn_copia.pressed.connect(func() -> void:
 		DisplayServer.clipboard_set(_cartella)
 		_btn_copia.text = tr("Copiato"))
@@ -39,6 +52,11 @@ func _ready() -> void:
 func mostra(stato: Dictionary) -> void:
 	var sh: Dictionary = stato.get("sheet", {})
 	_cartella = str(stato.get("cartella", ""))
+	# Il log puo' mancare (scrittura fallita, sidecar vecchio): meglio un
+	# bottone spento che uno che apre il nulla.
+	var lg = stato.get("log", null)
+	_log = str(lg) if lg != null and FileAccess.file_exists(str(lg)) else ""
+	_btn_log.disabled = _log == ""
 	_btn_copia.text = tr("Copia percorso")
 
 	var percorso: String = str(sh.get("percorso", ""))
@@ -71,6 +89,9 @@ func mostra(stato: Dictionary) -> void:
 		tr("GIF: [b]%.1f fps[/b] reali, %.2f s")
 			% [float(gf.get("fps_reale", 0)), float(gf.get("durata_s", 0))],
 	])
+	if stato.has("seed"):
+		_dati.text += "
+" + tr("Seed: [b]%d[/b]") % int(stato["seed"])
 	_fps.value = maxf(1.0, float(gf.get("fps_reale", 12)))
 	_fps_lbl.text = "%d fps" % int(_fps.value)
 
@@ -81,6 +102,9 @@ func mostra(stato: Dictionary) -> void:
 	_in_pausa = false
 	_pausa.text = tr("Pausa")
 	set_process(true)
+	# Solo qui, cioe' solo a generazione riuscita: dopo un errore o un
+	# Annulla questo pannello non viene nemmeno chiamato.
+	_invito.proponi()
 
 
 func _ritaglia(intero: Texture2D, colonne: int, righe: int, n_frame: int) -> void:
@@ -116,6 +140,7 @@ func _alterna_pausa() -> void:
 
 ## Torna allo stato iniziale quando parte una nuova generazione.
 func pulisci() -> void:
+	_invito.nascondi()
 	set_process(false)
 	_celle.clear()
 	_anteprima.texture = null

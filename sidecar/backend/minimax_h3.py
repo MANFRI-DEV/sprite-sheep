@@ -20,7 +20,7 @@ class BackendMiniMaxH3(Backend):
 
     def genera(self, sprite: str, prompt: str, lunghezza: int,
                larghezza: int, altezza: int, seed: int,
-               avanzamento=None) -> list:
+               avanzamento=None, fermo=None) -> list:
         if larghezza % 32 or altezza % 32:
             raise ValueError(
                 "MiniMax H3 richiede dimensioni multiple di 32: ricevuto %dx%d"

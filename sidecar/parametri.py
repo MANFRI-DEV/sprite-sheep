@@ -21,8 +21,51 @@ FRAZIONE_UTILE = 0.85
 # Regole per modello: passo e offset della lunghezza valida, piu' gli fps
 REGOLE = {
     "minimax_h3_fl2va": {"fps": 24, "passo": 17, "offset": 5, "max": 362},
+    # FastH3 e' lo stesso modello distillato: stesse lunghezze valide, stessi
+    # fps. Cambia solo quanti passi di campionamento servono, che e' una cosa
+    # del backend e non della geometria della clip.
+    "minimax_h3_fast":  {"fps": 24, "passo": 17, "offset": 5, "max": 362},
     "wan22_ti2v_5b":    {"fps": 24, "passo": 4,  "offset": 1, "max": 241},
 }
+
+
+## Formati della clip generata, larghezza x altezza in pixel.
+##
+## Sono i sei rapporti per cui H3 dichiara supporto. L'area resta vicina a
+## 448x448 (~200 mila pixel), che e' il budget provato sugli 8 GB della RTX
+## 3050: un 16:9 alla risoluzione nativa di H3 (1344x768) ne costerebbe cinque
+## volte tanto. Lati multipli di 32, come vogliono sia H3 sia WAN 2.2.
+##
+## I rapporti sono approssimati dove il 32 non lo consente (9:16 esce 0,556
+## invece di 0,5625): non importa, perche' lo sprite viene adattato alla tela
+## esatta e non al rapporto nominale, quindi niente viene stirato.
+FORMATI = {
+    "1:1":  (448, 448),
+    "3:4":  (384, 512),
+    "4:3":  (512, 384),
+    "9:16": (320, 576),
+    "16:9": (576, 320),
+    "21:9": (672, 288),
+}
+FORMATO_PREDEFINITO = "1:1"
+
+
+def risoluzione(formato: str) -> tuple[int, int]:
+    """Larghezza e altezza della clip. Un formato sconosciuto e' un errore:
+    ripiegare in silenzio sul quadrato darebbe un'animazione diversa da
+    quella chiesta senza dire perche'."""
+    if formato not in FORMATI:
+        raise ValueError("formato sconosciuto: %r (validi: %s)"
+                         % (formato, ", ".join(FORMATI)))
+    return FORMATI[formato]
+
+
+def cella(lato: int, larghezza: int, altezza: int) -> tuple[int, int]:
+    """Dimensioni di una cella dello sheet: il lato lungo vale `lato`, l'altro
+    segue le proporzioni della clip."""
+    if larghezza >= altezza:
+        return lato, max(1, round(lato * altezza / larghezza))
+    return max(1, round(lato * larghezza / altezza)), lato
 
 
 def lunghezza_valida(model_id: str, durata_s: float) -> dict:
@@ -81,9 +124,11 @@ def indici_frame(lunghezza: int, n_frame: int) -> list[int]:
     return visti
 
 
-def piano(model_id: str, durata_s: float, n_frame: int) -> dict:
+def piano(model_id: str, durata_s: float, n_frame: int,
+          formato: str = FORMATO_PREDEFINITO) -> dict:
     """Riassunto completo per l'interfaccia e per la generazione."""
     n_frame = max(FRAME_MIN, min(FRAME_MAX, int(n_frame)))
+    larghezza, altezza = risoluzione(formato)
     L = lunghezza_valida(model_id, durata_s)
     cols, rows = griglia_per(n_frame)
     idx = indici_frame(L["lunghezza"], n_frame)
@@ -93,6 +138,9 @@ def piano(model_id: str, durata_s: float, n_frame: int) -> dict:
         "colonne": cols,
         "righe": rows,
         "celle_vuote": cols * rows - n_frame,
+        "formato": formato,
+        "larghezza": larghezza,
+        "altezza": altezza,
         "indici": idx,
         # fps di riproduzione dello sprite sheet: n_frame distribuiti sulla durata
         "fps_riproduzione": round(n_frame / L["durata_effettiva_s"], 2),

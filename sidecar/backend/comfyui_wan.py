@@ -13,8 +13,8 @@ Differenze rispetto a H3, tutte dovute al modello:
 
 Il grafo usa soli nodi del core, come per H3.
 """
+import io
 import math
-import shutil
 import time
 import urllib.error
 from pathlib import Path
@@ -24,8 +24,9 @@ from PIL import Image
 from testi import t
 
 from . import Backend
-from .comfyui_bridge import (COLONNE_STRIP, COMFY, _cartelle_comfy, _get, _post,
-                             comfy_disponibile)
+from .comfyui_bridge import (COLONNE_STRIP, COMFY, Annullato, _get, _post,
+                             annulla_prompt, carica_immagine,
+                             comfy_disponibile, scarica_uscita)
 
 CLASSI_RICHIESTE = [
     "UNETLoader", "CLIPLoader", "VAELoader", "LoadImage", "CLIPTextEncode",
@@ -43,7 +44,10 @@ SHIFT = 8.0
 NEGATIVO = (
     "blurry, low quality, jpeg artifacts, watermark, text, letters, signature, "
     "extra limbs, deformed anatomy, changing design, flickering, "
-    "camera motion, zoom, pan, cut, scene change, multiple characters"
+    "camera motion, zoom, pan, cut, scene change, multiple characters, "
+    # Lo scontorno toglie il bianco: lampi e scie diventano buchi nella figura.
+    "white flash, glow, sparkles, speed lines, motion trails, "
+    "turning around, back view"
 )
 
 
@@ -85,6 +89,7 @@ def costruisci_grafo(immagine: str, prompt: str, lunghezza: int,
 
 class BackendComfyUIWan22(Backend):
     nome = "WAN 2.2 TI2V 5B via ComfyUI"
+    PASSI = 20
 
     MODELLI = {
         "diffusion": "wan2.2_ti2v_5B_fp16.safetensors",
@@ -94,21 +99,22 @@ class BackendComfyUIWan22(Backend):
 
     def genera(self, sprite: str, prompt: str, lunghezza: int,
                larghezza: int, altezza: int, seed: int,
-               avanzamento=None) -> list:
+               avanzamento=None, fermo=None) -> list:
         if (lunghezza - 1) % 4:
             raise ValueError(t("gen.lunghezza_wan", n=lunghezza))
         if not comfy_disponibile():
             raise RuntimeError(t("gen.comfy_muta", url=COMFY))
 
-        cartella_in, cartella_out = _cartelle_comfy()
-        src = Path(sprite)
-        dst = cartella_in / ("spritesheep_" + src.name)
-        if not dst.exists() or dst.stat().st_mtime < src.stat().st_mtime:
-            shutil.copy2(src, dst)
+        # Lo sprite si manda a ComfyUI via HTTP, come per H3, invece di
+        # copiarlo in una cartella `input/` dedotta dal percorso. Qui era
+        # rimasta la vecchia strada, e la funzione che deduceva le cartelle
+        # e' stata tolta dal ponte nella 0.0.4: da allora questo modulo non
+        # si importava nemmeno, e scegliere WAN dava un ImportError.
+        nome_in = carica_immagine(Path(sprite))
 
         grafo, righe = costruisci_grafo(
-            dst.name, prompt, lunghezza, larghezza, altezza,
-            int(seed) or int(time.time()), self.MODELLI)
+            nome_in, prompt, lunghezza, larghezza, altezza,
+            int(seed) or int(time.time()), self.MODELLI, passi=self.PASSI)
 
         r = _post("/prompt", {"prompt": grafo})
         job = r.get("prompt_id")
@@ -118,6 +124,9 @@ class BackendComfyUIWan22(Backend):
         file_out = None
         for _ in range(4000):                        # tetto ~2 ore
             time.sleep(2.0)
+            if fermo is not None and fermo.is_set():
+                annulla_prompt(job)
+                raise Annullato(t("gen.annullato"))
             try:
                 st = _get("/history/%s" % job)
             except urllib.error.HTTPError:
@@ -131,16 +140,16 @@ class BackendComfyUIWan22(Backend):
                 raise RuntimeError(t("gen.comfy_fallita", dettaglio=voce.get("status")))
             for uscita in voce.get("outputs", {}).values():
                 for im in uscita.get("images", []):
-                    file_out = cartella_out / im.get("subfolder", "") / im["filename"]
+                    file_out = im
             if file_out:
                 break
-        if not file_out or not Path(file_out).exists():
+        if not file_out:
             raise RuntimeError(t("gen.nessuna_immagine"))
 
         if avanzamento:
             avanzamento(0.95)
 
-        strip = Image.open(file_out).convert("RGBA")
+        strip = Image.open(io.BytesIO(scarica_uscita(file_out))).convert("RGBA")
         cw, ch = strip.width // COLONNE_STRIP, strip.height // righe
         frames = []
         for i in range(lunghezza):

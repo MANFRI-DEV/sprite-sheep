@@ -17,7 +17,10 @@ file locale che chiunque poteva cancellare, quindi non proteggeva nulla e
 intralciava le prove.
 """
 
-VERSIONE = "0.0.4-pre-alpha"
+import config
+
+# Non una costante propria: vedi la nota in `config.VERSION`.
+VERSIONE = config.VERSION
 NOME_EDIZIONE = "Pre-alpha %s" % VERSIONE
 
 ## Nessuna filigrana. La costante resta perche' `genera.py` la interroga, e

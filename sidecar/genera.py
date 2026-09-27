@@ -1,15 +1,22 @@
-"""Orchestrazione della generazione: sprite + prompt -> sheet + GIF.
+"""Esecuzione di un lavoro: sprite + una o piu' azioni -> sheet + GIF ciascuna.
 
 La catena e' divisa in due tronconi, con confini netti:
 
   1. INFERENZA  (backend/*.py)  sprite + prompt -> lista di frame
   2. POST       (sheet.py)      frame -> selezione, griglia, GIF
 
-Il troncone 2 e' completo e collaudato. Il troncone 1 dipende dai pesi:
-finche' il modello non e' scaricato, `esegui` fallisce con un messaggio che
-dice cosa manca invece di rompersi a meta'.
+Un lavoro puo' contenere piu' azioni dello stesso personaggio (idle, walk,
+attacco...): stesso modello, sprite, formato e scontorno; prompt, durata,
+frame e seme propri. L'inferenza le fa in un colpo solo (`genera_lotto`),
+cosi' i pesi si caricano una volta; il post le tratta una per una, e ogni
+azione ha la sua cartella, il suo log e il suo `meta.json`.
+
+Chi mette in fila i lavori e ne tiene lo stato e' `coda.py`: qui non ci sono
+thread ne' registri, solo il lavoro.
 """
-import threading
+import json
+import random
+import shutil
 import time
 import traceback
 from pathlib import Path
@@ -18,34 +25,101 @@ import config
 from testi import t
 import edizione
 import filigrana
+import inquadra
 import modelli
 import parametri
+import rapporto
 import scontorno
 import sheet
 from backend import ottieni_backend
 
-_lavori: dict[str, dict] = {}
-_lock = threading.Lock()
+## Campi comuni a tutte le azioni di un lavoro, con il loro valore se mancano.
+COMUNI = {
+    "modello": None,
+    "sprite": None,
+    "formato": parametri.FORMATO_PREDEFINITO,
+    "margine": inquadra.MARGINE_PREDEFINITO,
+    "scontorna": True,
+    "colore_sfondo": "auto",
+    "lato_cella": 256,
+}
+
+## Stima del tempo che resta per il post di un'azione: scontorno, sheet, GIF.
+## Misurato su 25 frame a 448: pochi secondi, qui arrotondati per eccesso.
+POST_S = 8
 
 
-def _aggiorna(job_id: str, **campi) -> None:
-    with _lock:
-        _lavori.setdefault(job_id, {}).update(campi)
+def normalizza(richiesta: dict) -> dict:
+    """Da una richiesta singola o a lotto alla forma unica
+    `{comuni..., "azioni": [{nome, prompt, durata_s, n_frame, seed}]}`.
+
+    Solleva ValueError con un messaggio per l'utente se manca qualcosa.
+    """
+    fuori = {k: richiesta.get(k, v) for k, v in COMUNI.items()}
+    for chiave in ("modello", "sprite"):
+        if not fuori[chiave]:
+            raise ValueError(t("gen.campo_mancante", campo=chiave))
+    if "azioni" in richiesta:
+        grezze = list(richiesta.get("azioni") or [])
+    else:
+        grezze = [richiesta]
+    if not grezze:
+        raise ValueError(t("gen.azioni_vuote"))
+    azioni = []
+    for a in grezze:
+        if not (a.get("prompt") or "").strip():
+            raise ValueError(t("gen.campo_mancante", campo="prompt"))
+        azioni.append({
+            "nome": (a.get("nome") or "animazione").strip() or "animazione",
+            "prompt": a["prompt"],
+            "durata_s": float(a.get("durata_s", 2.0)),
+            "n_frame": int(a.get("n_frame", 25)),
+            "seed": int(a.get("seed", 0) or 0),
+        })
+    # Formato e margine si controllano subito: un errore qui deve arrivare al
+    # clic su Genera, non dopo sei minuti di caricamento pesi.
+    parametri.risoluzione(fuori["formato"])
+    if fuori["margine"] not in inquadra.MARGINI:
+        raise ValueError("margine sconosciuto: %r" % fuori["margine"])
+    fuori["azioni"] = azioni
+    return fuori
 
 
-def stato(job_id: str) -> dict:
-    with _lock:
-        return dict(_lavori.get(job_id, {"esiste": False}))
+class Stima:
+    """Quanto manca, dall'andamento della barra.
+
+    Prima del primo passo di campionamento non si dice niente: il caricamento
+    dei pesi va da pochi secondi (in cache) a sei minuti (da disco), e un
+    numero inventato e' peggio di nessun numero. Dal primo passo in poi il
+    ritmo e' regolare e basta una proporzione.
+    """
+    INIZIO = 0.15      # dove FASI mette l'inizio del campionamento
+
+    def __init__(self, n_azioni: int) -> None:
+        self.n = n_azioni
+        self.t0 = None
+        self.p0 = 0.0
+
+    def secondi(self, p: float) -> int | None:
+        adesso = time.time()
+        if self.t0 is None:
+            if p > self.INIZIO:
+                self.t0, self.p0 = adesso, p
+            return None
+        if p - self.p0 < 0.02:
+            return None
+        ritmo = (adesso - self.t0) / (p - self.p0)
+        return int(ritmo * (1.0 - p) + POST_S * self.n)
 
 
-def _esegui(job_id: str, richiesta: dict) -> None:
+def esegui(job_id: str, lavoro: dict, fermo, aggiorna) -> None:
+    """Esegue un lavoro gia' normalizzato. `aggiorna(**campi)` scrive lo
+    stato che l'interfaccia legge; a fine lavoro `attivo` e' sempre False."""
+    from backend.comfyui_bridge import Annullato
+    inizio = time.time()
+    adattato = config.CACHE_DIR / f"sprite_{job_id}.png"
     try:
-        model_id = richiesta["modello"]
-        nome = richiesta.get("nome") or "animazione"
-        n_frame = int(richiesta.get("n_frame", 25))
-        durata = float(richiesta.get("durata_s", 2.0))
-        lato = int(richiesta.get("lato_cella", 256))
-
+        model_id = lavoro["modello"]
         st = modelli.stato(model_id)
         if not st["installato"]:
             mancanti = [f["path"] for f in st["file"] if not f["presente"]]
@@ -53,87 +127,195 @@ def _esegui(job_id: str, richiesta: dict) -> None:
                 "mod.non_installato", id=model_id, n=len(mancanti),
                 primo=Path(mancanti[0]).name))
 
-        piano = parametri.piano(model_id, durata, n_frame)
-        _aggiorna(job_id, fase="inferenza", percentuale=0.0, piano=piano)
+        azioni = lavoro["azioni"]
+        piani = [parametri.piano(model_id, a["durata_s"], a["n_frame"],
+                                 lavoro["formato"]) for a in azioni]
+        # Il seme si sceglie qui e non nel backend: 0 vuol dire "a caso", e se
+        # il caso lo tirava il backend il valore usato si perdeva — il log
+        # non poteva riportarlo e l'animazione non si poteva rifare uguale.
+        semi = [a["seed"] or random.randint(1, 2**31 - 1) for a in azioni]
+        larghezza, altezza = piani[0]["larghezza"], piani[0]["altezza"]
+        aggiorna(fase="inferenza", percentuale=0.0, piano=piani[0],
+                 azioni=len(azioni))
 
+        sprite = inquadra.adatta(Path(lavoro["sprite"]), larghezza, altezza,
+                                 lavoro["colore_sfondo"], lavoro["margine"],
+                                 adattato)
+
+        # Annullato mentre si adattava lo sprite: inutile svegliare ComfyUI.
+        if fermo.is_set():
+            raise Annullato(t("gen.annullato"))
         backend = ottieni_backend(model_id, config.MODELS_DIR / model_id)
-        frames = backend.genera(
-            sprite=richiesta["sprite"],
-            prompt=richiesta["prompt"],
-            lunghezza=piano["lunghezza"],
-            larghezza=int(richiesta.get("larghezza", 448)),
-            altezza=int(richiesta.get("altezza", 448)),
-            seed=int(richiesta.get("seed", 0)),
-            avanzamento=lambda p: _aggiorna(job_id, percentuale=round(p * 0.9, 3)),
-        )
+        stima = Stima(len(azioni))
 
-        _aggiorna(job_id, fase="composizione", percentuale=0.92)
-        scelti = [frames[i] for i in piano["indici"] if i < len(frames)]
+        # Il backend racconta due cose: a che punto e' e cosa sta facendo.
+        # Dopo un Annulla il WebSocket continua a raccontare i passi finche'
+        # ComfyUI non si ferma davvero: senza la condizione, la scritta "sto
+        # fermando" verrebbe coperta da "genero i fotogrammi 5/8" e
+        # sembrerebbe che il clic non sia servito.
+        def avanzamento(p, dettaglio=""):
+            if fermo.is_set():
+                return
+            campi = {"percentuale": round(p * 0.9, 3), "eta_s": stima.secondi(p)}
+            if dettaglio:
+                campi["dettaglio"] = dettaglio
+            aggiorna(**campi)
 
-        # I modelli di diffusione video non producono un canale alfa: i frame
-        # arrivano opachi, con lo sfondo bianco chiesto dal prompt. Uno sprite
-        # sheet con lo sfondo pieno non e' utilizzabile in un gioco, quindi la
-        # trasparenza va ricavata qui, frame per frame, con lo stesso scontorno
-        # che si applica allo sprite sorgente.
-        scontorna = bool(richiesta.get("scontorna", True))
-        if scontorna:
-            _aggiorna(job_id, fase="scontorno", percentuale=0.93)
-            scelti = [scontorno.scontorna_immagine(f) for f in scelti]
+        inizio_inferenza = time.time()
+        tutti = backend.genera_lotto(
+            str(sprite),
+            [{"prompt": a["prompt"], "lunghezza": p["lunghezza"], "seed": s}
+             for a, p, s in zip(azioni, piani, semi)],
+            larghezza, altezza, avanzamento=avanzamento, fermo=fermo)
+        fine_inferenza = time.time()
 
-        # La filigrana va qui, sui frame gia' scelti e scontornati: cosi'
-        # finisce sia nel foglio sia nella GIF, e non viene mangiata dallo
-        # scontorno. L'edizione senza filigrana e' questo `if`.
-        if edizione.FILIGRANA:
-            _aggiorna(job_id, fase="filigrana", percentuale=0.94)
-            scelti = filigrana.applica(scelti, edizione.FILIGRANA_TESTO)
+        comune = {
+            "inizio": inizio, "inizio_inferenza": inizio_inferenza,
+            "fine_inferenza": fine_inferenza, "modello_id": model_id,
+            "modello_nome": modelli.CATALOGO.get(model_id, {}).get("nome", model_id),
+            "backend": getattr(backend, "nome", type(backend).__name__),
+            "passi": getattr(backend, "PASSI", None),
+            "larghezza": larghezza, "altezza": altezza,
+            "filigrana": bool(edizione.FILIGRANA),
+            "n_azioni": len(azioni),
+        }
+        risultati = []
+        usati = set()
+        for i, (a, piano, seme, frames) in enumerate(zip(azioni, piani, semi, tutti)):
+            base = 0.9 + 0.1 * i / len(azioni)
+            aggiorna(fase="composizione", percentuale=round(base, 3), dettaglio=(
+                t("gen.azione_di", i=i + 1, n=len(azioni)) + a["nome"]
+                if len(azioni) > 1 else ""))
+            risultati.append(_componi(a, piano, seme, frames, lavoro, comune,
+                                      inizio, usati))
 
-        # Una cartella per generazione, marcata con l'istante in cui e' partita.
-        # Senza, rigenerare con lo stesso nome sovrascriveva il lavoro
-        # precedente: dieci minuti di GPU persi in silenzio, e nessun modo di
-        # confrontare due tentativi dello stesso soggetto.
-        dest = config.OUTPUT_DIR / f"{nome}_{time.strftime('%Y-%m-%d_%H-%M-%S')}"
-        r_sheet = sheet.componi_sheet(
-            scelti, piano["colonne"], piano["righe"], lato,
-            dest / f"{nome}_sheet.png")
+        # Per un'azione sola i campi stanno anche in cima, dove l'interfaccia
+        # li ha sempre letti; per un lotto in cima c'e' l'ultima azione, che
+        # e' quella che il pannello Risultato mostra.
+        ultimo = risultati[-1]
+        aggiorna(fase="fatto", percentuale=1.0, attivo=False, dettaglio="",
+                 eta_s=0, risultati=risultati, sheet=ultimo["sheet"],
+                 gif=ultimo["gif"], cartella=ultimo["cartella"],
+                 log=ultimo["log"], seed=ultimo["seed"],
+                 scontornato=lavoro["scontorna"], edizione=edizione.stato())
 
-        _aggiorna(job_id, fase="gif", percentuale=0.97)
-        r_gif = sheet.componi_gif(
-            scelti, piano["fps_riproduzione"], lato, dest / f"{nome}.gif")
-
-        # `scontornato` viaggia fino all'interfaccia: quando il risultato non e'
-        # quello atteso, la prima domanda e' se l'opzione fosse davvero attiva,
-        # e senza questo dato la risposta si puo' solo indovinare.
-        _aggiorna(job_id, fase="fatto", percentuale=1.0, attivo=False,
-                  sheet=r_sheet, gif=r_gif, cartella=str(dest),
-                  scontornato=scontorna, edizione=edizione.stato())
-
+    except Annullato:
+        # Non e' un errore: l'utente ha chiesto di fermare. Niente traccia da
+        # copiare, niente rosso in interfaccia — solo lo stato.
+        aggiorna(fase="annullato", attivo=False, dettaglio="", eta_s=None)
     except Exception as e:
         # La traccia viaggia intera fino all'interfaccia: e' quella che serve
         # incollare quando qualcosa si rompe, e ricostruirla a mano dai log del
         # sidecar significa non averla proprio.
-        _aggiorna(job_id, fase="errore", attivo=False,
-                  errore=f"{type(e).__name__}: {e}",
-                  traccia=traceback.format_exc(),
-                  richiesta={k: richiesta.get(k) for k in
-                             ("modello", "sprite", "nome", "durata_s", "n_frame")})
+        aggiorna(fase="errore", attivo=False, eta_s=None,
+                 errore=f"{type(e).__name__}: {e}",
+                 traccia=traceback.format_exc(),
+                 richiesta={
+                     **{k: lavoro.get(k) for k in ("modello", "sprite", "formato", "margine")},
+                     "azioni": ", ".join("%s (%.1f s, %d frame)" % (
+                         a["nome"], a["durata_s"], a["n_frame"])
+                         for a in lavoro.get("azioni", []))})
         traceback.print_exc()
+    finally:
+        # Lo sprite adattato serve solo a ComfyUI, che l'ha gia' ricevuto via
+        # HTTP; nel log finisce l'originale.
+        adattato.unlink(missing_ok=True)
 
 
-def avvia(richiesta: dict) -> dict:
-    for chiave in ("modello", "sprite", "prompt"):
-        if not richiesta.get(chiave):
-            return {"ok": False, "errore": t("gen.campo_mancante", campo=chiave)}
-    if not Path(richiesta["sprite"]).is_file():
-        return {"ok": False, "errore": t("gen.sprite_assente")}
+def _componi(azione: dict, piano: dict, seme: int, frames: list, lavoro: dict,
+             comune: dict, inizio: float, usati: set) -> dict:
+    """Dal video di un'azione a cartella con sheet, GIF, log e meta."""
+    nome = azione["nome"]
+    scelti = [frames[i] for i in piano["indici"] if i < len(frames)]
 
-    # Il tetto si consuma prima di avviare il thread: chiedere dopo vorrebbe
-    # dire aver gia' occupato la GPU per una generazione non ammessa.
-    permesso = edizione.consuma()
-    if not permesso.get("ok"):
-        return {"ok": False, "errore": permesso["errore"],
-                "edizione": edizione.stato()}
+    # I modelli di diffusione video non producono un canale alfa: i frame
+    # arrivano opachi, con lo sfondo chiesto dal prompt. Uno sprite sheet con
+    # lo sfondo pieno non e' utilizzabile in un gioco, quindi la trasparenza
+    # va ricavata qui, frame per frame, con lo stesso scontorno dello sprite.
+    diagnosi = None
+    if lavoro["scontorna"]:
+        colore = lavoro["colore_sfondo"]
+        if scelti:
+            diagnosi = scontorno.diagnosi(scelti[0], colore=colore)
+        scelti = [scontorno.scontorna_immagine(f, colore=colore) for f in scelti]
 
-    job_id = "job_%d" % int(time.time() * 1000)
-    _aggiorna(job_id, attivo=True, fase="avvio", percentuale=0.0, errore=None)
-    threading.Thread(target=_esegui, args=(job_id, richiesta), daemon=True).start()
-    return {"ok": True, "job": job_id, "edizione": edizione.stato()}
+    # La filigrana va qui, sui frame gia' scelti e scontornati: cosi' finisce
+    # sia nel foglio sia nella GIF, e non viene mangiata dallo scontorno.
+    if edizione.FILIGRANA:
+        scelti = filigrana.applica(scelti, edizione.FILIGRANA_TESTO)
+
+    # Una cartella per azione, marcata con l'istante in cui il lavoro e'
+    # partito. Senza, rigenerare con lo stesso nome sovrascriveva il lavoro
+    # precedente. Due azioni con lo stesso nome nello stesso lotto prendono
+    # un suffisso invece di sovrascriversi a vicenda.
+    marca = time.strftime('%Y-%m-%d_%H-%M-%S', time.localtime(inizio))
+    cartella = f"{nome}_{marca}"
+    k = 2
+    while cartella in usati or (config.OUTPUT_DIR / cartella).exists():
+        cartella = f"{nome}_{marca}_{k}"
+        k += 1
+    usati.add(cartella)
+    dest = config.OUTPUT_DIR / cartella
+
+    cella = parametri.cella(int(lavoro["lato_cella"]),
+                            comune["larghezza"], comune["altezza"])
+    r_sheet = sheet.componi_sheet(scelti, piano["colonne"], piano["righe"],
+                                  cella, dest / f"{nome}_sheet.png")
+    r_gif = sheet.componi_gif(scelti, piano["fps_riproduzione"], cella,
+                              dest / f"{nome}.gif")
+
+    log = _scrivi_rapporti(dest, nome, azione, lavoro, {
+        **comune, "seed": seme, "piano": piano, "cella": cella,
+        "scontorno": diagnosi, "margine": lavoro["margine"],
+        "gif": Path(r_gif["percorso"]).name,
+        "sheet": Path(r_sheet["percorso"]).name,
+        "fps_gif": r_gif["fps_reale"],
+    })
+    return {"nome": nome, "sheet": r_sheet, "gif": r_gif,
+            "cartella": str(dest), "log": log, "seed": seme}
+
+
+def _scrivi_rapporti(dest: Path, nome: str, azione: dict, lavoro: dict,
+                     dati: dict):
+    """Copia lo sprite di partenza, scrive il log HTML e `meta.json`.
+
+    La copia serve perche' il log punta a file relativi, e perche' la
+    cronologia la usa per rigenerare: lo sprite originale puo' essere
+    spostato o sovrascritto. `meta.json` e' la richiesta completa, cosi'
+    "rigenera con un altro seme" rifa esattamente la stessa cosa.
+
+    Un rapporto che non si scrive non deve far perdere l'animazione: sheet e
+    GIF sono gia' su disco, quindi l'errore si stampa e si va avanti.
+    """
+    try:
+        src = Path(lavoro["sprite"])
+        copia = dest / f"{nome}_sprite_iniziale{src.suffix.lower() or '.png'}"
+        shutil.copy2(src, copia)
+        fine = time.time()
+        log = rapporto.scrivi(dest, nome, {
+            **dati, "fine": fine, "versione": config.VERSION,
+            "prompt": azione["prompt"], "sprite": copia.name,
+            "sprite_originale": str(src),
+        })
+        meta = {
+            "versione": config.VERSION,
+            "nome": nome,
+            "inizio": dati["inizio"], "fine": fine,
+            "modello": lavoro["modello"],
+            "modello_nome": dati["modello_nome"],
+            "formato": lavoro["formato"], "margine": lavoro["margine"],
+            "scontorna": lavoro["scontorna"],
+            "colore_sfondo": lavoro["colore_sfondo"],
+            "lato_cella": lavoro["lato_cella"],
+            "prompt": azione["prompt"],
+            "durata_s": azione["durata_s"], "n_frame": azione["n_frame"],
+            "seed": dati["seed"],
+            "sprite": copia.name, "sprite_originale": str(src),
+            "gif": dati["gif"], "sheet": dati["sheet"], "log": log.name,
+        }
+        (dest / "meta.json").write_text(
+            json.dumps(meta, ensure_ascii=False, indent=2), encoding="utf-8")
+        return str(log)
+    except Exception:
+        traceback.print_exc()
+        return None

@@ -14,7 +14,7 @@ config/name="Sprite Sheep"
 config/use_custom_user_dir=true
 config/custom_user_dir_name="Sprite Sheep"
 config/description="Da uno sprite e un prompt genera sprite sheet animati e GIF."
-config/version="0.0.4-pre-alpha"
+config/version="0.0.5-pre-alpha"
 run/main_scene="res://scenes/main.tscn"
 config/icon="res://icon.png"
 config/features=PackedStringArray("4.6", "GL Compatibility")
@@ -28,7 +28,15 @@ locale/translations=PackedStringArray("res://traduzioni.it.translation", "res://
 window/size/viewport_width=1400
 window/size/viewport_height=900
 window/size/mode=2
-window/stretch/mode="canvas_items"
+; Niente stretch: la finestra e' una finestra, non una tela di dimensione
+; fissa da scalare. Con "canvas_items" i 1400x900 di progetto venivano
+; ridimensionati in blocco, quindi allargando la finestra il testo cresceva
+; e stringendola il layout finiva fuori invece di riordinarsi.
+; Con lo stretch spento i controlli tengono la loro dimensione vera e sono i
+; contenitori a ridistribuire lo spazio, che e' il loro mestiere.
+window/stretch/mode="disabled"
+window/size/window_width_override=0
+window/size/window_height_override=0
 
 [rendering]
 

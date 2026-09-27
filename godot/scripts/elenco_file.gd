@@ -19,7 +19,7 @@ class_name ElencoFile
 
 const COLORI := {
 	"presente": Color(0.36, 0.81, 0.49),
-	"mancante": Color(0.49, 0.53, 0.60),
+	"mancante": Color(0.776, 0.8, 0.847),
 	"in_corso": Color(0.88, 0.71, 0.29),
 	"errore":   Color(0.88, 0.36, 0.36),
 }
@@ -90,7 +90,7 @@ static func _intestazione(totale: int, presenti: int, gb_ora: float,
 		corpo.visible = not corpo.visible
 		aggiorna.call())
 	b.add_theme_color_override("font_color",
-		Color(0.36, 0.81, 0.49) if presenti == totale else Color(0.55, 0.59, 0.66))
+		Color(0.36, 0.81, 0.49) if presenti == totale else Color(0.776, 0.8, 0.847))
 	return b
 
 
@@ -103,14 +103,14 @@ static func _riga_cartella(percorso_file: String) -> Control:
 	var eti := Label.new()
 	eti.text = TR("Cartella:")
 	eti.add_theme_font_size_override("font_size", 10)
-	eti.add_theme_color_override("font_color", Color(0.38, 0.41, 0.47))
+	eti.add_theme_color_override("font_color", Color(0.69, 0.72, 0.78))
 	riga.add_child(eti)
 
 	var et := Label.new()
 	et.text = cartella
 	et.tooltip_text = cartella
 	et.add_theme_font_size_override("font_size", 10)
-	et.add_theme_color_override("font_color", Color(0.55, 0.59, 0.66))
+	et.add_theme_color_override("font_color", Color(0.776, 0.8, 0.847))
 	# Il percorso e' lungo e non deve allargare il pannello: si tronca, e per
 	# intero resta nel tooltip.
 	et.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
@@ -162,7 +162,7 @@ static func _riga_file(f: Dictionary) -> Control:
 	var peso := Label.new()
 	peso.text = "%.1f GB" % float(f.get("gb", 0))
 	peso.add_theme_font_size_override("font_size", 11)
-	peso.add_theme_color_override("font_color", Color(0.49, 0.53, 0.60))
+	peso.add_theme_color_override("font_color", Color(0.776, 0.8, 0.847))
 	riga.add_child(peso)
 
 	var et_stato := Label.new()
