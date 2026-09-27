@@ -17,25 +17,36 @@ jobs:
         os: [ubuntu-latest, windows-latest]
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
         with:
           python-version: "3.12"
       - run: pip install pillow numpy scipy
+      # Tutti i test girano anche se uno fallisce, e chi fallisce lascia le
+      # ultime righe in un'annotazione: i log di GitHub si leggono solo da
+      # autenticati, le annotazioni no.
       - name: Test del sidecar
         shell: bash
         run: |
+          falliti=""
           for t in test_parametri test_scontorno test_rapporto test_coda test_gpu test_sicurezza; do
             echo "== $t"
-            python sidecar/$t.py
+            if python sidecar/$t.py > esito.txt 2>&1; then
+              cat esito.txt
+            else
+              cat esito.txt
+              echo "::error title=$t::$(tail -n 8 esito.txt | sed ':a;N;$!ba;s/\n/%0A/g')"
+              falliti="$falliti $t"
+            fi
           done
+          if [ -n "$falliti" ]; then echo "Falliti:$falliti"; exit 1; fi
 
   godot:
     runs-on: ubuntu-latest
     env:
       GODOT_VERSION: 4.6.1
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: Scarica Godot
         run: |
           curl -sSL -o godot.zip \

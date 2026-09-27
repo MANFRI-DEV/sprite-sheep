@@ -6,6 +6,7 @@ quelli veri.
     python sidecar/test_coda.py
 """
 import json
+import os
 import sys
 import tempfile
 import threading
@@ -143,7 +144,11 @@ def main() -> int:
     rq = storico.richiesta_da(ris[1]["cartella"], seed=7)
     verifica(rq["seed"] == 7 and rq["prompt"] == "colpisce" and rq["formato"] == "3:4",
              "richiesta ricostruita male: %s" % rq)
-    verifica(Path(rq["sprite"]).parent == Path(ris[1]["cartella"]),
+    # Stessa cartella sul disco, non stessa stringa: `richiesta_da` normalizza
+    # con resolve(), che su Windows espande i nomi brevi. Sul server della CI
+    # la cartella temporanea e' C:\Users\RUNNER~1\... e il confronto fra
+    # stringhe falliva su una cartella giusta.
+    verifica(os.path.samefile(Path(rq["sprite"]).parent, ris[1]["cartella"]),
              "rigenera non usa la copia dello sprite")
     for fuori in (str(tmp), str(sprite.parent.parent), "C:\\Windows", ""):
         try:
