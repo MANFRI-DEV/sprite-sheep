@@ -16,11 +16,12 @@ entrambi nati da fallimenti concreti:
 3. `binary_fill_holes` pero' riempie anche i buchi che sono sfondo davvero: il
    triangolo fra un braccio sul fianco e il corpo, lo spazio fra le gambe
    divaricate. Restavano bianchi dentro uno sprite altrimenti trasparente.
-   Si distinguono per colore: un buco che ha **lo stesso identico colore dello
-   sfondo esterno** e' sfondo rimasto intrappolato, mentre gli occhi e la lana
-   crema di un soggetto chiaro hanno comunque una tinta loro. Il confronto e'
-   stretto di proposito: sbagliare da questo lato lascia una macchia bianca,
-   sbagliare dall'altro buca il soggetto.
+   Si distinguono per colore **e per grandezza**: un buco che ha lo stesso
+   identico colore dello sfondo esterno ed e' una zona grande e' sfondo
+   rimasto intrappolato. Il colore da solo non basta: il bianco degli occhi e
+   i riflessi della lana sono bianchi quanto il fondo (vedi `QUOTA_BUCO`). Il
+   confronto di colore e' stretto di proposito: sbagliare da questo lato
+   lascia una macchia bianca, sbagliare dall'altro buca il soggetto.
 
 rembg/u2net e' stato provato e scartato: su disegni con contorni netti lascia
 un alone sfocato largo decine di pixel.
@@ -106,7 +107,26 @@ def _buchi_di_sfondo(a: np.ndarray, fg: np.ndarray, sfondo: np.ndarray,
     # Distanza dal colore di sfondo, sul canale che si scosta di piu':
     # una media nasconderebbe uno scarto forte su un canale solo.
     scarto = np.abs(a - tinta).max(axis=2)
-    return fg & (scarto <= tolleranza)
+    candidati = fg & (scarto <= tolleranza)
+
+    # Il colore da solo non basta: il bianco degli occhi e i riflessi della
+    # lana sono bianchi quanto il fondo. Il controllo era per pixel, e sulla
+    # pecora di esempio svuotava gli occhi (che diventavano neri sul fondo
+    # scuro) e punteggiava la lana di buchi: 1122 zone, la piu' grande
+    # l'1,1% della figura. Un buco vero — fra braccio e fianco, fra le gambe —
+    # e' una zona sola e grande; si tengono solo quelle sopra QUOTA_BUCO.
+    lab, n = ndimage.label(candidati)
+    if not n:
+        return candidati
+    aree = ndimage.sum(candidati, lab, range(1, n + 1))
+    minima = max(16.0, QUOTA_BUCO * float(fg.sum()))
+    grandi = [i + 1 for i, s in enumerate(aree) if s >= minima]
+    return np.isin(lab, grandi) if grandi else np.zeros_like(fg)
+
+
+## Area minima di un buco trasparente, in frazione della figura. La pecora ha
+## occhi e riflessi fino all'1,1%: 1,5% li salva con un po' di margine.
+QUOTA_BUCO = 0.015
 
 
 def _tinta_angoli(a: np.ndarray) -> np.ndarray:

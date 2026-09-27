@@ -349,7 +349,7 @@ def mappa_lotto(n: int) -> dict:
             rel = (inizio - _FINE_CONDIVISI) / (1.0 - _FINE_CONDIVISI)
             mappa[nodo(base, r)] = (_FINE_CONDIVISI + (r + rel) * quota,
                                     peso / (1.0 - _FINE_CONDIVISI) * quota,
-                                    chiave, (r + 1, n))
+                                    chiave, (r + 1, n, quota))
     return mappa
 
 
@@ -514,6 +514,11 @@ class _Racconto:
         self.mappa = mappa
         self.job = None
         self._ultima = 0.0
+        ## ramo -> posto nell'ordine di esecuzione. ComfyUI non esegue i rami
+        ## in ordine: con la pecora ha fatto 1, 2, 5, 4, 3, e una barra che
+        ## usava il numero del ramo saltava al 74% dopo due azioni su cinque,
+        ## con "~2:32 rimanenti" per dodici minuti di lavoro.
+        self._ordine: dict[int, int] = {}
 
     def _fase(self, nodo: str, ripiego: tuple) -> tuple:
         """(inizio, peso, frase) del nodo, con il numero dell'azione davanti
@@ -523,8 +528,12 @@ class _Racconto:
             return ripiego
         inizio, peso, chiave = voce[:3]
         frase = t(chiave) if chiave else ""
-        if len(voce) > 3 and frase:
-            frase = t("gen.azione_di", i=voce[3][0], n=voce[3][1]) + frase
+        if len(voce) > 3:
+            azione, n, quota = voce[3]
+            posto = self._ordine.setdefault(azione, len(self._ordine))
+            inizio += (posto - (azione - 1)) * quota
+            if frase:
+                frase = t("gen.azione_di", i=azione, n=n) + frase
         return inizio, peso, frase
 
     def _dire(self, frazione: float, frase: str) -> None:

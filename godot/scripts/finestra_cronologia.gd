@@ -88,9 +88,12 @@ func apri() -> void:
 		var v: Dictionary = _voci[i]
 		var testo := "%s   %s" % [v.get("data", ""), v.get("nome", "")]
 		if v.has("modello"):
-			testo += "\n%s · %s · %s s · %s frame · %s %s" % [
-				v.get("modello", ""), v.get("formato", ""), str(v.get("durata_s", "")),
-				str(v.get("n_frame", "")), tr("seme"), str(v.get("seed", ""))]
+			# Una riga sola: l'ItemList ignora gli a capo, e nome e dettagli
+			# finivano attaccati ("lotto_idleMiniMax H3"). Dal JSON i numeri
+			# arrivano float: senza %d si leggeva "16.0 frame", "seme 1234.0".
+			testo += "   ·   %s · %s · %.1f s · %s · %s %d" % [
+				v.get("modello", ""), v.get("formato", ""), float(v.get("durata_s", 0)),
+				tr("%d frame") % int(v.get("n_frame", 0)), tr("seme"), int(v.get("seed", 0))]
 		_lista.add_item(testo, _miniatura(v) if i < MAX_MINIATURE else null)
 	_dettaglio.text = tr("Nessuna generazione ancora.") if _voci.is_empty() \
 		else tr("Doppio clic per aprire il log.")

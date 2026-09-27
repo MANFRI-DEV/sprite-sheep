@@ -81,6 +81,28 @@ def main() -> int:
     verifica(ab[100, 100] > 200, "soggetto crema bucato")
     verifica(ab[178, 60] < 50, "ombra grigia rimasta")
 
+    # --- fondo bianco: occhio bianco racchiuso resta, buco grande si svuota --
+    # Il bianco degli occhi e' bianco quanto il fondo: prima veniva svuotato
+    # pixel per pixel, e la pecora di esempio aveva gli occhi neri.
+    oc = Image.new("RGB", (300, 300), (255, 255, 255))
+    d = ImageDraw.Draw(oc)
+    d.rectangle((40, 40, 259, 259), fill=(200, 60, 60), outline=(0, 0, 0), width=4)
+    d.ellipse((70, 70, 90, 90), fill=(255, 255, 255), outline=(0, 0, 0), width=2)   # occhio
+    d.rectangle((140, 120, 230, 230), fill=(255, 255, 255), outline=(0, 0, 0), width=4)  # buco
+    ao = alfa(S.scontorna_immagine(oc))
+    verifica(ao[80, 80] == 255, "occhio bianco svuotato")
+    verifica(ao[175, 185] == 0, "buco grande rimasto opaco")
+    pecora = Path(__file__).parent.parent / "godot" / "sprites" / "sprite_sheep.png"
+    if pecora.is_file():
+        im_p = Image.open(pecora).convert("RGB")
+        ap = alfa(S.scontorna_immagine(im_p))
+        a_p = np.asarray(im_p).astype(np.int16)
+        bianchi = (a_p > 245).all(2)
+        interni = bianchi & ~S._componenti_al_bordo(bianchi)
+        salvi = float((ap[interni] > 128).mean())
+        verifica(salvi > 0.95, "pecora di esempio: bianchi interni salvi solo al %.0f%%"
+                 % (100 * salvi))
+
     # --- nessun pixel del colore chiesto: tutto opaco, non bucato a caso ------
     blu = Image.new("RGB", (60, 60), (20, 20, 220))
     verifica(alfa(S.scontorna_immagine(blu, colore="verde")).min() == 255,

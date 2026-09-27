@@ -79,7 +79,8 @@ func _togli() -> void:
 func _aggiorna() -> void:
 	_lista.clear()
 	for a in _azioni:
-		_lista.add_item("%s · %.1f s · %d frame" % [a["nome"], float(a["durata_s"]), int(a["n_frame"])])
+		_lista.add_item("%s · %.1f s · %s" % [a["nome"], float(a["durata_s"]),
+			tr("%d frame") % int(a["n_frame"])])
 	_lista.visible = not _azioni.is_empty()
 	_btn_togli.disabled = true
 	_btn_svuota.disabled = _azioni.is_empty()

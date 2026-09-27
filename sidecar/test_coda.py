@@ -190,6 +190,18 @@ def main() -> int:
     eta = st.secondi(0.4)
     verifica(eta is not None and 25 <= eta <= 45, "stima fuori misura: %s" % eta)
 
+    # --- barra del lotto: ComfyUI esegue i rami in ordine suo --------------
+    # Ordine vero visto con la pecora: 1, 2, 5, 4, 3. La barra deve salire
+    # regolare, non saltare al 74% dopo due azioni.
+    from backend.comfyui_bridge import _Racconto, mappa_lotto, nodo
+    visti = []
+    rc = _Racconto(lambda p, d="": visti.append(p), mappa_lotto(5))
+    for ramo in (0, 1, 4, 3, 2):
+        rc.evento({"type": "executing", "data": {"node": nodo(6, ramo)}})
+        rc.evento({"type": "progress", "data": {"node": nodo(11, ramo), "value": 8, "max": 8}})
+    verifica(all(b >= a for a, b in zip(visti, visti[1:])), "barra del lotto che rincula")
+    verifica(visti[3] < 0.5, "barra del lotto troppo avanti dopo due azioni: %.2f" % visti[3])
+
     for e in errori:
         print("ERRORE:", e)
     print("tutto a posto" if not errori else f"{len(errori)} errori")

@@ -25,6 +25,8 @@ var _log := ""
 ## Creato da codice e non nella scena: e' un fratello di "Apri cartella" e
 ## vive o muore con lui, quindi basta metterlo subito dopo.
 var _btn_log := Button.new()
+## La riga discreta di Ko-fi sotto il risultato: quando mostrarla lo decide lei.
+var _invito := InvitoKofi.new()
 
 
 func _ready() -> void:
@@ -40,6 +42,7 @@ func _ready() -> void:
 		if _log != "":
 			OS.shell_open(_log))
 	_btn_cartella.add_sibling(_btn_log)
+	_contenuto.add_child(_invito)
 	_btn_copia.pressed.connect(func() -> void:
 		DisplayServer.clipboard_set(_cartella)
 		_btn_copia.text = tr("Copiato"))
@@ -99,6 +102,9 @@ func mostra(stato: Dictionary) -> void:
 	_in_pausa = false
 	_pausa.text = tr("Pausa")
 	set_process(true)
+	# Solo qui, cioe' solo a generazione riuscita: dopo un errore o un
+	# Annulla questo pannello non viene nemmeno chiamato.
+	_invito.proponi()
 
 
 func _ritaglia(intero: Texture2D, colonne: int, righe: int, n_frame: int) -> void:
@@ -134,6 +140,7 @@ func _alterna_pausa() -> void:
 
 ## Torna allo stato iniziale quando parte una nuova generazione.
 func pulisci() -> void:
+	_invito.nascondi()
 	set_process(false)
 	_celle.clear()
 	_anteprima.texture = null

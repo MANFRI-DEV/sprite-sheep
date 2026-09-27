@@ -81,6 +81,36 @@ func post_json(_r: String, _c: Dictionary) -> Dictionary: return {}
 	_verifica(TestiGenerazione.formatta(372.0) == "6:12", "formatta")
 	_verifica(TestiGenerazione.in_corso({"percentuale": 0.5, "eta_s": 90}, 10.0).contains("1:30"), "eta")
 
+	# Invito Ko-fi: mai alla prima generazione, una volta per sessione, e
+	# "Non mostrare piu'" vale per sempre. Percorsi di prova, non quelli veri.
+	var conta := "user://_prova_conteggio.cfg"
+	var spento := "user://_prova_spento.cfg"
+	for f in [conta, spento]:
+		DirAccess.remove_absolute(ProjectSettings.globalize_path(f))
+	var inv := InvitoKofi.new()
+	inv.memoria_conteggio = conta
+	inv.memoria_spento = spento
+	root.add_child(inv)
+	await process_frame
+	inv.proponi()
+	_verifica(not inv.visible, "invito alla prima generazione")
+	inv.proponi()
+	_verifica(inv.visible, "invito assente alla seconda")
+	inv.hide()
+	inv.proponi()
+	_verifica(not inv.visible, "invito due volte nella stessa sessione")
+	var inv2 := InvitoKofi.new()
+	inv2.memoria_conteggio = conta
+	inv2.memoria_spento = spento
+	root.add_child(inv2)
+	await process_frame
+	inv2._su_link("mai")
+	inv2._mostrato_in_sessione = false
+	inv2.proponi()
+	_verifica(not inv2.visible, "invito dopo 'non mostrare piu''")
+	for f in [conta, spento]:
+		DirAccess.remove_absolute(ProjectSettings.globalize_path(f))
+
 	for e in _errori:
 		printerr("ERRORE: ", e)
 	print("tutto a posto" if _errori.is_empty() else "%d errori" % _errori.size())

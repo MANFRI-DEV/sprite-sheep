@@ -52,9 +52,15 @@ def elenco() -> list[dict]:
             gif = next(iter(sorted(c.glob("*.gif"))), None)
             if gif is None:
                 continue
-            voci.append({"cartella": str(c), "nome": c.name,
-                         "quando": c.stat().st_mtime, "gif": str(gif),
-                         "rigenerabile": False})
+            voce = {"cartella": str(c), "nome": c.name,
+                    "quando": c.stat().st_mtime, "gif": str(gif),
+                    "rigenerabile": False}
+            # Il foglio serve alla miniatura: senza, le generazioni di prima
+            # della 0.0.5 comparivano come righe nude in mezzo alle altre.
+            foglio = next(iter(sorted(c.glob("*sheet*.png"))), None)
+            if foglio is not None:
+                voce["sheet"] = str(foglio)
+            voci.append(voce)
             continue
         voce = {
             "cartella": str(c), "nome": m.get("nome", c.name),

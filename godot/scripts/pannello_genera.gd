@@ -143,8 +143,8 @@ func _aggiorna_bottone() -> void:
 		return
 	# Con azioni in coda basta sprite e modello: i prompt sono gia' nelle voci.
 	if in_coda > 0:
-		_btn.disabled = _job != "" or _principale.sprite_scelto == "" \
-			or _principale.modello_attivo == ""
+		_btn.disabled = _job != "" or not _principale.motore_pronto \
+			or _principale.sprite_scelto == "" or _principale.modello_attivo == ""
 		_btn.text = tr("Genera %d azioni (pesi caricati una volta)") % in_coda
 		return
 	_btn.disabled = not pronto
